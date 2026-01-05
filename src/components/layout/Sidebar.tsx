@@ -224,11 +224,10 @@ export function Sidebar() {
 
 			{/* Close context menu when clicking outside */}
 			{contextMenuId && (
-				<div
-					role="button"
-					tabIndex={0}
+				<button
+					type="button"
 					aria-label="Close menu"
-					className="fixed inset-0 z-5"
+					className="fixed inset-0 z-5 cursor-default"
 					onClick={() => setContextMenuId(null)}
 					onKeyDown={(e) => e.key === "Escape" && setContextMenuId(null)}
 				/>

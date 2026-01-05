@@ -103,11 +103,10 @@ export function ConnectionFormModal({
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center">
 			{/* Backdrop */}
-			<div
-				role="button"
-				tabIndex={0}
+			<button
+				type="button"
 				aria-label="Close modal"
-				className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+				className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-default"
 				onClick={onClose}
 				onKeyDown={(e) => e.key === "Escape" && onClose()}
 			/>

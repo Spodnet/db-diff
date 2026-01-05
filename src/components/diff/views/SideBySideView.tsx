@@ -71,16 +71,28 @@ export function SideBySideView({
 
 		// Find all cells for this column (in both source and target tables)
 		const cells = document.querySelectorAll(`[data-col="${column}"]`);
+		if (cells.length === 0) return;
 
-		let maxWidth = column.length * 8; // Start with approximate header width
+		const canvas = document.createElement("canvas");
+		const context = canvas.getContext("2d");
+		if (!context) return;
 
-		// Measure actual DOM elements
+		// Get font directly from element to be accurate
+		const font = window.getComputedStyle(cells[0]).font;
+		context.font = font || "12px monospace";
+
+		// Measure header width first (approximate with column name)
+		let maxWidth = context.measureText(column).width + 32; // Header needs bit more space for icons
+
+		// Measure all cell contents
 		for (const cell of cells) {
-			maxWidth = Math.max(maxWidth, cell.scrollWidth);
+			const text = cell.textContent || "";
+			const width = context.measureText(text).width;
+			maxWidth = Math.max(maxWidth, width + 24); // Content width + padding (16px) + buffer
 		}
 
-		// Add padding (px-2 = 8px * 2 = 16px) + buffer
-		const newWidth = Math.max(60, Math.min(500, maxWidth + 24));
+		// Cap between 60px and 600px
+		const newWidth = Math.max(60, Math.min(600, maxWidth));
 		setColumnWidths((prev) => ({ ...prev, [column]: newWidth }));
 	};
 

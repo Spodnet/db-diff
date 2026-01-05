@@ -20,6 +20,7 @@ interface DiffContextType {
 	error: string | null;
 	// Merge state
 	selectedRows: Set<string>;
+	mergedCells: Map<string, Set<string>>;
 	mergeOperations: MergeOperation[];
 	isMerging: boolean;
 	mergeError: string | null;
@@ -42,6 +43,7 @@ interface DiffContextType {
 	deselectAllRows: () => void;
 	executeMerge: (targetConnection: Connection) => Promise<void>;
 	clearMergeState: () => void;
+	mergeCell: (primaryKey: string, column: string) => void;
 }
 
 const DiffContext = createContext<DiffContextType | null>(null);
@@ -62,6 +64,9 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 	const [isMerging, setIsMerging] = useState(false);
 	const [mergeError, setMergeError] = useState<string | null>(null);
 	const [mergeSuccess, setMergeSuccess] = useState(false);
+	const [mergedCells, setMergedCells] = useState<Map<string, Set<string>>>(
+		new Map(),
+	);
 
 	const setSourceConnection = (connectionId: string | null) => {
 		setSelection((prev) => ({
@@ -71,12 +76,14 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 		}));
 		setDiffResult(null);
 		setSelectedRows(new Set());
+		setMergedCells(new Map());
 	};
 
 	const setSourceTable = (tableName: string | null) => {
 		setSelection((prev) => ({ ...prev, sourceTableName: tableName }));
 		setDiffResult(null);
 		setSelectedRows(new Set());
+		setMergedCells(new Map());
 	};
 
 	const setTargetConnection = (connectionId: string | null) => {
@@ -87,12 +94,14 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 		}));
 		setDiffResult(null);
 		setSelectedRows(new Set());
+		setMergedCells(new Map());
 	};
 
 	const setTargetTable = (tableName: string | null) => {
 		setSelection((prev) => ({ ...prev, targetTableName: tableName }));
 		setDiffResult(null);
 		setSelectedRows(new Set());
+		setMergedCells(new Map());
 	};
 
 	const runComparison = async (
@@ -104,6 +113,7 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 		setIsComparing(true);
 		setError(null);
 		setSelectedRows(new Set());
+		setMergedCells(new Map());
 		setMergeSuccess(false);
 		setMergeError(null);
 
@@ -147,6 +157,7 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 		setDiffResult(null);
 		setError(null);
 		setSelectedRows(new Set());
+		setMergedCells(new Map());
 	};
 
 	// Merge actions
@@ -170,6 +181,17 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 
 	const deselectAllRows = () => {
 		setSelectedRows(new Set());
+		setMergedCells(new Map());
+	};
+
+	const mergeCell = (primaryKey: string, column: string) => {
+		setMergedCells((prev) => {
+			const next = new Map(prev);
+			const cellSet = next.get(primaryKey) || new Set();
+			cellSet.add(column);
+			next.set(primaryKey, cellSet);
+			return next;
+		});
 	};
 
 	// Generate merge operations for selected rows
@@ -180,10 +202,14 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 		const { tableName, primaryKeyColumn, columns } = diffResult;
 
 		for (const row of diffResult.rows) {
-			if (!selectedRows.has(row.primaryKey)) continue;
+			const isRowSelected = selectedRows.has(row.primaryKey);
+			const cellMerges = mergedCells.get(row.primaryKey);
+			const hasCellMerges = cellMerges && cellMerges.size > 0;
+
+			if (!isRowSelected && !hasCellMerges) continue;
 			if (row.status === "unchanged") continue;
 
-			if (row.status === "deleted") {
+			if (row.status === "deleted" && isRowSelected) {
 				// Row exists in source but not in target - INSERT into target
 				const values = columns.map((col) => formatValue(row.sourceRow?.[col]));
 				ops.push({
@@ -191,7 +217,7 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 					primaryKey: row.primaryKey,
 					sql: `INSERT INTO ${tableName} (${columns.join(", ")}) VALUES (${values.join(", ")});`,
 				});
-			} else if (row.status === "added") {
+			} else if (row.status === "added" && isRowSelected) {
 				// Row exists in target but not in source - DELETE from target
 				ops.push({
 					type: "delete",
@@ -200,9 +226,16 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 				});
 			} else if (row.status === "modified") {
 				// Row exists in both but differs - UPDATE target to match source
+				// If row selected, update ALL modified columns
+				// If not selected but has cell merges, update ONLY specified columns
 				const setClauses = row.cellDiffs
-					.filter((c) => c.status === "modified")
+					.filter((c) => {
+						if (c.status !== "modified") return false;
+						if (isRowSelected) return true;
+						return cellMerges?.has(c.column);
+					})
 					.map((c) => `${c.column} = ${formatValue(c.sourceValue)}`);
+
 				if (setClauses.length > 0) {
 					ops.push({
 						type: "update",
@@ -241,6 +274,7 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 			if (result.success) {
 				setMergeSuccess(true);
 				setSelectedRows(new Set());
+				setMergedCells(new Map());
 			} else {
 				setMergeError(result.error || "Merge failed");
 			}
@@ -264,6 +298,7 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 				isComparing,
 				error,
 				selectedRows,
+				mergedCells,
 				mergeOperations,
 				isMerging,
 				mergeError,
@@ -279,6 +314,7 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 				deselectAllRows,
 				executeMerge,
 				clearMergeState,
+				mergeCell,
 			}}
 		>
 			{children}

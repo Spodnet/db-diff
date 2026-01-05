@@ -14,8 +14,14 @@ type ViewMode = "inline" | "side-by-side";
 
 export function DiffResultsGrid({ result }: DiffResultsGridProps) {
 	const [viewMode, setViewMode] = useState<ViewMode>("side-by-side");
-	const { selectedRows, toggleRowSelection, selectAllRows, deselectAllRows } =
-		useDiff();
+	const {
+		selectedRows,
+		toggleRowSelection,
+		selectAllRows,
+		deselectAllRows,
+		mergedCells,
+		mergeCell,
+	} = useDiff();
 
 	const {
 		summary,
@@ -123,6 +129,8 @@ export function DiffResultsGrid({ result }: DiffResultsGridProps) {
 						onToggleSelection={toggleRowSelection}
 						onSelectAll={handleSelectAll}
 						allSelected={allChangedRowsSelected}
+						mergedCells={mergedCells}
+						onMergeCell={mergeCell}
 					/>
 				) : (
 					<InlineView

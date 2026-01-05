@@ -13,6 +13,8 @@ export function SideBySideView({
 	onToggleSelection,
 	onSelectAll,
 	allSelected,
+	mergedCells,
+	onMergeCell,
 }: ViewProps) {
 	const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
 	const resizingRef = useRef<{
@@ -158,7 +160,7 @@ export function SideBySideView({
 										className={`${getStatusBgClass(row.status)} ${
 											isSelected ? "bg-accent/10" : ""
 										} border-b border-border/50 hover:bg-surface-elevated/50 transition-colors cursor-pointer h-[36.5px]`}
-										onClick={() => onToggleSelection(row.primaryKey)}
+										onDoubleClick={() => onToggleSelection(row.primaryKey)}
 									>
 										{/* biome-ignore lint/a11y/useKeyWithClickEvents: stopEvents needed for checkbox */}
 										<td
@@ -177,6 +179,9 @@ export function SideBySideView({
 												(c) => c.column === col,
 											);
 											const isCellModified = cellDiff?.status === "modified";
+											const isMerged = mergedCells
+												?.get(row.primaryKey)
+												?.has(col);
 											const isDeleted = row.status === "deleted";
 
 											return (
@@ -187,21 +192,38 @@ export function SideBySideView({
 															? "text-text-muted"
 															: isDeleted
 																? "text-deleted"
-																: isCellModified
-																	? "text-modified bg-modified-bg/50 font-medium"
-																	: "text-text-primary"
+																: isMerged
+																	? "text-text-primary bg-accent/20 font-medium"
+																	: isCellModified
+																		? "text-modified bg-modified-bg/50 font-medium"
+																		: "text-text-primary"
 													}`}
 													style={{ maxWidth: 0 }} // Allow truncate to work with table-fixed
 												>
+													{/* biome-ignore lint/a11y/noStaticElementInteractions: clickable for merge */}
+													{/* biome-ignore lint/a11y/useKeyWithClickEvents: click only */}
 													<div
 														data-col={col}
-														className="truncate"
+														className={`truncate flex items-center gap-1 ${
+															isCellModified && !isMerged
+																? "cursor-pointer hover:text-accent hover:underline"
+																: ""
+														}`}
 														title={
-															!isAdded
-																? getCellValue(row, col, "source")
-																: undefined
+															isCellModified
+																? "Click to merge this cell"
+																: !isAdded
+																	? getCellValue(row, col, "source")
+																	: undefined
 														}
+														onClick={(e) => {
+															if (isCellModified) {
+																e.stopPropagation();
+																onMergeCell?.(row.primaryKey, col);
+															}
+														}}
 													>
+														{isMerged && <span className="text-accent">✓</span>}
 														{isAdded ? "—" : getCellValue(row, col, "source")}
 													</div>
 												</td>
@@ -276,7 +298,7 @@ export function SideBySideView({
 													? "bg-modified-bg/30"
 													: ""
 										} h-[36.5px]`}
-										onClick={() => onToggleSelection(row.primaryKey)}
+										onDoubleClick={() => onToggleSelection(row.primaryKey)}
 									>
 										<td className="px-2 py-2 text-center" />
 										{columns.map((col) => {

@@ -18,4 +18,6 @@ export interface ViewProps {
 	onToggleSelection: (id: string) => void;
 	onSelectAll: () => void;
 	allSelected: boolean;
+	mergedCells?: Map<string, Set<string>>;
+	onMergeCell?: (primaryKey: string, column: string) => void;
 }

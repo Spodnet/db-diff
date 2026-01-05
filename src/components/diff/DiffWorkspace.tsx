@@ -21,6 +21,7 @@ export function DiffWorkspace() {
 		setTargetTable,
 		runComparison,
 		selectedRows,
+		mergedCells,
 		mergeOperations,
 		executeMerge,
 		isMerging,
@@ -65,6 +66,11 @@ export function DiffWorkspace() {
 		selection.sourceTableName &&
 		selection.targetConnectionId &&
 		selection.targetTableName;
+
+	const selectedRowCount =
+		selectedRows.size +
+		[...(mergedCells?.keys() || [])].filter((k) => !selectedRows.has(k)).length;
+	const hasSelection = selectedRowCount > 0;
 
 	const handleCompare = async () => {
 		if (!canCompare) return;
@@ -189,14 +195,14 @@ export function DiffWorkspace() {
 						)}
 					</button>
 
-					{diffResult && selectedRows.size > 0 && (
+					{diffResult && hasSelection && (
 						<button
 							type="button"
 							onClick={handleMergeClick}
 							className="px-6 py-3 bg-success text-white rounded-lg font-medium hover:bg-success/90 shadow-lg shadow-success/20 transition-all flex items-center gap-2"
 						>
 							<GitMerge className="w-4 h-4" />
-							Merge ({selectedRows.size})
+							Merge ({selectedRowCount})
 						</button>
 					)}
 				</div>
@@ -206,6 +212,15 @@ export function DiffWorkspace() {
 			{error && (
 				<div className="mb-4 px-4 py-3 bg-deleted-bg text-deleted rounded-lg text-sm">
 					{error}
+				</div>
+			)}
+
+			{/* Selection Summary (appears when there's a selection) */}
+			{diffResult && hasSelection && (
+				<div className="flex items-center gap-4 bg-surface-elevated px-4 py-2 border-t border-border animate-in slide-in-from-bottom duration-200 mb-4 rounded-lg">
+					<span className="text-sm text-text-primary">
+						{selectedRowCount} rows selected for merge.
+					</span>
 				</div>
 			)}
 

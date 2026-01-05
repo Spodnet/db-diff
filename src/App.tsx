@@ -7,7 +7,7 @@ import { ConnectionProvider } from "./hooks/useConnections";
 export function App() {
 	return (
 		<ConnectionProvider>
-			<div className="flex flex-col min-h-screen bg-(--color-background)">
+			<div className="flex flex-col min-h-screen bg-background">
 				<Header />
 				<div className="flex flex-1 overflow-hidden">
 					<Sidebar />

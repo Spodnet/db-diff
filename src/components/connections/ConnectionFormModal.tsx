@@ -112,18 +112,18 @@ export function ConnectionFormModal({
 			/>
 
 			{/* Modal */}
-			<div className="relative bg-(--color-surface) rounded-xl border border-(--color-border) shadow-2xl w-full max-w-lg mx-4">
+			<div className="relative bg-surface rounded-xl border border-border shadow-2xl w-full max-w-lg mx-4">
 				{/* Header */}
-				<div className="flex items-center justify-between p-4 border-b border-(--color-border)">
-					<h2 className="text-lg font-semibold text-(--color-text-primary)">
+				<div className="flex items-center justify-between p-4 border-b border-border">
+					<h2 className="text-lg font-semibold text-text-primary">
 						{editConnection ? "Edit Connection" : "New Connection"}
 					</h2>
 					<button
 						type="button"
 						onClick={onClose}
-						className="p-1.5 rounded-lg hover:bg-(--color-surface-elevated) transition-colors"
+						className="p-1.5 rounded-lg hover:bg-surface-elevated transition-colors"
 					>
-						<X className="w-5 h-5 text-(--color-text-secondary)" />
+						<X className="w-5 h-5 text-text-secondary" />
 					</button>
 				</div>
 
@@ -136,8 +136,8 @@ export function ConnectionFormModal({
 							onClick={() => setConnectionType("sqlite")}
 							className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-colors ${
 								connectionType === "sqlite"
-									? "bg-(--color-accent) border-(--color-accent) text-white"
-									: "bg-(--color-surface-elevated) border-(--color-border) text-(--color-text-secondary) hover:border-(--color-accent)"
+									? "bg-accent border-accent text-white"
+									: "bg-surface-elevated border-border text-text-secondary hover:border-accent"
 							}`}
 						>
 							<FileText className="w-4 h-4" />
@@ -148,8 +148,8 @@ export function ConnectionFormModal({
 							onClick={() => setConnectionType("mysql")}
 							className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-colors ${
 								connectionType === "mysql"
-									? "bg-(--color-accent) border-(--color-accent) text-white"
-									: "bg-(--color-surface-elevated) border-(--color-border) text-(--color-text-secondary) hover:border-(--color-accent)"
+									? "bg-accent border-accent text-white"
+									: "bg-surface-elevated border-border text-text-secondary hover:border-accent"
 							}`}
 						>
 							<Server className="w-4 h-4" />
@@ -161,7 +161,7 @@ export function ConnectionFormModal({
 					<div>
 						<label
 							htmlFor="connection-name"
-							className="block text-sm font-medium text-(--color-text-secondary) mb-1.5"
+							className="block text-sm font-medium text-text-secondary mb-1.5"
 						>
 							Connection Name
 						</label>
@@ -173,7 +173,7 @@ export function ConnectionFormModal({
 							placeholder={
 								connectionType === "sqlite" ? "My SQLite DB" : "My MySQL Server"
 							}
-							className="w-full px-3 py-2 bg-(--color-background) border border-(--color-border) rounded-lg text-(--color-text-primary) placeholder:text-(--color-text-muted) focus:outline-none focus:border-(--color-accent) transition-colors"
+							className="w-full px-3 py-2 bg-background border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
 						/>
 					</div>
 
@@ -182,7 +182,7 @@ export function ConnectionFormModal({
 						<div>
 							<label
 								htmlFor="file-path"
-								className="block text-sm font-medium text-(--color-text-secondary) mb-1.5"
+								className="block text-sm font-medium text-text-secondary mb-1.5"
 							>
 								Database File Path
 							</label>
@@ -192,7 +192,7 @@ export function ConnectionFormModal({
 								value={filePath}
 								onChange={(e) => setFilePath(e.target.value)}
 								placeholder="/path/to/database.sqlite"
-								className="w-full px-3 py-2 bg-(--color-background) border border-(--color-border) rounded-lg text-(--color-text-primary) placeholder:text-(--color-text-muted) focus:outline-none focus:border-(--color-accent) transition-colors"
+								className="w-full px-3 py-2 bg-background border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
 							/>
 						</div>
 					)}
@@ -204,7 +204,7 @@ export function ConnectionFormModal({
 								<div className="col-span-2">
 									<label
 										htmlFor="mysql-host"
-										className="block text-sm font-medium text-(--color-text-secondary) mb-1.5"
+										className="block text-sm font-medium text-text-secondary mb-1.5"
 									>
 										Host
 									</label>
@@ -214,13 +214,13 @@ export function ConnectionFormModal({
 										value={host}
 										onChange={(e) => setHost(e.target.value)}
 										placeholder="localhost"
-										className="w-full px-3 py-2 bg-(--color-background) border border-(--color-border) rounded-lg text-(--color-text-primary) placeholder:text-(--color-text-muted) focus:outline-none focus:border-(--color-accent) transition-colors"
+										className="w-full px-3 py-2 bg-background border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
 									/>
 								</div>
 								<div>
 									<label
 										htmlFor="mysql-port"
-										className="block text-sm font-medium text-(--color-text-secondary) mb-1.5"
+										className="block text-sm font-medium text-text-secondary mb-1.5"
 									>
 										Port
 									</label>
@@ -229,7 +229,7 @@ export function ConnectionFormModal({
 										type="number"
 										value={port}
 										onChange={(e) => setPort(Number(e.target.value))}
-										className="w-full px-3 py-2 bg-(--color-background) border border-(--color-border) rounded-lg text-(--color-text-primary) focus:outline-none focus:border-(--color-accent) transition-colors"
+										className="w-full px-3 py-2 bg-background border border-border rounded-lg text-text-primary focus:outline-none focus:border-accent transition-colors"
 									/>
 								</div>
 							</div>
@@ -237,7 +237,7 @@ export function ConnectionFormModal({
 							<div>
 								<label
 									htmlFor="mysql-database"
-									className="block text-sm font-medium text-(--color-text-secondary) mb-1.5"
+									className="block text-sm font-medium text-text-secondary mb-1.5"
 								>
 									Database
 								</label>
@@ -247,7 +247,7 @@ export function ConnectionFormModal({
 									value={database}
 									onChange={(e) => setDatabase(e.target.value)}
 									placeholder="my_database"
-									className="w-full px-3 py-2 bg-(--color-background) border border-(--color-border) rounded-lg text-(--color-text-primary) placeholder:text-(--color-text-muted) focus:outline-none focus:border-(--color-accent) transition-colors"
+									className="w-full px-3 py-2 bg-background border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
 								/>
 							</div>
 
@@ -255,7 +255,7 @@ export function ConnectionFormModal({
 								<div>
 									<label
 										htmlFor="mysql-username"
-										className="block text-sm font-medium text-(--color-text-secondary) mb-1.5"
+										className="block text-sm font-medium text-text-secondary mb-1.5"
 									>
 										Username
 									</label>
@@ -265,13 +265,13 @@ export function ConnectionFormModal({
 										value={username}
 										onChange={(e) => setUsername(e.target.value)}
 										placeholder="root"
-										className="w-full px-3 py-2 bg-(--color-background) border border-(--color-border) rounded-lg text-(--color-text-primary) placeholder:text-(--color-text-muted) focus:outline-none focus:border-(--color-accent) transition-colors"
+										className="w-full px-3 py-2 bg-background border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
 									/>
 								</div>
 								<div>
 									<label
 										htmlFor="mysql-password"
-										className="block text-sm font-medium text-(--color-text-secondary) mb-1.5"
+										className="block text-sm font-medium text-text-secondary mb-1.5"
 									>
 										Password
 									</label>
@@ -281,7 +281,7 @@ export function ConnectionFormModal({
 										value={password}
 										onChange={(e) => setPassword(e.target.value)}
 										placeholder="••••••••"
-										className="w-full px-3 py-2 bg-(--color-background) border border-(--color-border) rounded-lg text-(--color-text-primary) placeholder:text-(--color-text-muted) focus:outline-none focus:border-(--color-accent) transition-colors"
+										className="w-full px-3 py-2 bg-background border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
 									/>
 								</div>
 							</div>
@@ -293,8 +293,8 @@ export function ConnectionFormModal({
 						<div
 							className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
 								testResult
-									? "bg-(--color-added-bg) text-(--color-added)"
-									: "bg-(--color-deleted-bg) text-(--color-deleted)"
+									? "bg-added-bg text-added"
+									: "bg-deleted-bg text-deleted"
 							}`}
 						>
 							{testResult ? (
@@ -313,12 +313,12 @@ export function ConnectionFormModal({
 				</div>
 
 				{/* Footer */}
-				<div className="flex items-center justify-between p-4 border-t border-(--color-border)">
+				<div className="flex items-center justify-between p-4 border-t border-border">
 					<button
 						type="button"
 						onClick={handleTest}
 						disabled={isTesting}
-						className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-(--color-text-secondary) hover:text-(--color-text-primary) transition-colors disabled:opacity-50"
+						className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
 					>
 						{isTesting ? (
 							<Loader2 className="w-4 h-4 animate-spin" />
@@ -332,14 +332,14 @@ export function ConnectionFormModal({
 						<button
 							type="button"
 							onClick={onClose}
-							className="px-4 py-2 text-sm font-medium text-(--color-text-secondary) hover:text-(--color-text-primary) transition-colors"
+							className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
 						>
 							Cancel
 						</button>
 						<button
 							type="button"
 							onClick={handleSave}
-							className="px-4 py-2 bg-(--color-accent) text-white text-sm font-medium rounded-lg hover:bg-(--color-accent-hover) transition-colors"
+							className="px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-hover transition-colors"
 						>
 							{editConnection ? "Save Changes" : "Add Connection"}
 						</button>

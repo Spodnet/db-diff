@@ -62,29 +62,29 @@ export function Sidebar() {
 		const status = connectionStatuses.get(id);
 		switch (status?.status) {
 			case "connected":
-				return "bg-(--color-added)";
+				return "bg-added";
 			case "connecting":
-				return "bg-(--color-modified)";
+				return "bg-modified";
 			case "error":
-				return "bg-(--color-deleted)";
+				return "bg-deleted";
 			default:
-				return "bg-(--color-text-muted)";
+				return "bg-text-muted";
 		}
 	};
 
 	return (
 		<>
-			<aside className="w-[280px] bg-(--color-surface) border-r border-(--color-border) flex flex-col">
+			<aside className="w-[280px] bg-surface border-r border-border flex flex-col">
 				{/* Connections Header */}
-				<div className="p-4 border-b border-(--color-border)">
+				<div className="p-4 border-b border-border">
 					<div className="flex items-center justify-between mb-3">
-						<h2 className="text-sm font-medium text-(--color-text-secondary) uppercase tracking-wider">
+						<h2 className="text-sm font-medium text-text-secondary uppercase tracking-wider">
 							Connections
 						</h2>
 						<button
 							type="button"
 							onClick={() => setIsModalOpen(true)}
-							className="p-1.5 rounded-md bg-(--color-accent) hover:bg-(--color-accent-hover) transition-colors"
+							className="p-1.5 rounded-md bg-accent hover:bg-accent-hover transition-colors"
 							aria-label="Add connection"
 						>
 							<Plus className="w-4 h-4 text-white" />
@@ -96,13 +96,13 @@ export function Sidebar() {
 				<div className="flex-1 overflow-auto p-2">
 					{connections.length === 0 ? (
 						<div className="flex flex-col items-center justify-center py-12 text-center">
-							<div className="w-12 h-12 rounded-full bg-(--color-surface-elevated) flex items-center justify-center mb-3">
-								<Database className="w-6 h-6 text-(--color-text-muted)" />
+							<div className="w-12 h-12 rounded-full bg-surface-elevated flex items-center justify-center mb-3">
+								<Database className="w-6 h-6 text-text-muted" />
 							</div>
-							<p className="text-sm text-(--color-text-secondary) mb-1">
+							<p className="text-sm text-text-secondary mb-1">
 								No connections yet
 							</p>
-							<p className="text-xs text-(--color-text-muted)">
+							<p className="text-xs text-text-muted">
 								Click + to add your first database
 							</p>
 						</div>
@@ -114,17 +114,17 @@ export function Sidebar() {
 									<button
 										type="button"
 										onClick={() => toggleExpanded(connection.id)}
-										className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-(--color-text-primary) hover:bg-(--color-surface-elevated) transition-colors"
+										className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-text-primary hover:bg-surface-elevated transition-colors"
 									>
 										{expandedConnections.has(connection.id) ? (
-											<ChevronDown className="w-4 h-4 text-(--color-text-muted)" />
+											<ChevronDown className="w-4 h-4 text-text-muted" />
 										) : (
-											<ChevronRight className="w-4 h-4 text-(--color-text-muted)" />
+											<ChevronRight className="w-4 h-4 text-text-muted" />
 										)}
 										{connection.type === "sqlite" ? (
-											<FileText className="w-4 h-4 text-(--color-accent)" />
+											<FileText className="w-4 h-4 text-accent" />
 										) : (
-											<Server className="w-4 h-4 text-(--color-accent)" />
+											<Server className="w-4 h-4 text-accent" />
 										)}
 										<span className="flex-1 text-left truncate">
 											{connection.name}
@@ -143,18 +143,18 @@ export function Sidebar() {
 												contextMenuId === connection.id ? null : connection.id,
 											);
 										}}
-										className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-(--color-surface-elevated) transition-all"
+										className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-surface-elevated transition-all"
 									>
-										<MoreVertical className="w-4 h-4 text-(--color-text-muted)" />
+										<MoreVertical className="w-4 h-4 text-text-muted" />
 									</button>
 
 									{/* Context Menu */}
 									{contextMenuId === connection.id && (
-										<div className="absolute right-0 top-8 z-10 w-40 bg-(--color-surface-elevated) border border-(--color-border) rounded-lg shadow-xl py-1">
+										<div className="absolute right-0 top-8 z-10 w-40 bg-surface-elevated border border-border rounded-lg shadow-xl py-1">
 											<button
 												type="button"
 												onClick={() => handleEdit(connection)}
-												className="w-full flex items-center gap-2 px-3 py-2 text-sm text-(--color-text-primary) hover:bg-(--color-surface) transition-colors"
+												className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface transition-colors"
 											>
 												<Edit2 className="w-4 h-4" />
 												Edit
@@ -164,7 +164,7 @@ export function Sidebar() {
 												<button
 													type="button"
 													onClick={() => disconnect(connection.id)}
-													className="w-full flex items-center gap-2 px-3 py-2 text-sm text-(--color-text-primary) hover:bg-(--color-surface) transition-colors"
+													className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface transition-colors"
 												>
 													<Unplug className="w-4 h-4" />
 													Disconnect
@@ -175,7 +175,7 @@ export function Sidebar() {
 													onClick={() => {
 														/* TODO: connect */
 													}}
-													className="w-full flex items-center gap-2 px-3 py-2 text-sm text-(--color-text-primary) hover:bg-(--color-surface) transition-colors"
+													className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface transition-colors"
 												>
 													<Plug className="w-4 h-4" />
 													Connect
@@ -184,7 +184,7 @@ export function Sidebar() {
 											<button
 												type="button"
 												onClick={() => handleDelete(connection.id)}
-												className="w-full flex items-center gap-2 px-3 py-2 text-sm text-(--color-deleted) hover:bg-(--color-surface) transition-colors"
+												className="w-full flex items-center gap-2 px-3 py-2 text-sm text-deleted hover:bg-surface transition-colors"
 											>
 												<Trash2 className="w-4 h-4" />
 												Delete
@@ -194,8 +194,8 @@ export function Sidebar() {
 
 									{/* Expanded Content (tables will go here) */}
 									{expandedConnections.has(connection.id) && (
-										<div className="ml-6 pl-2 border-l border-(--color-border)">
-											<p className="text-xs text-(--color-text-muted) py-2">
+										<div className="ml-6 pl-2 border-l border-border">
+											<p className="text-xs text-text-muted py-2">
 												Connect to view tables
 											</p>
 										</div>
@@ -207,14 +207,14 @@ export function Sidebar() {
 				</div>
 
 				{/* Quick Actions */}
-				<div className="p-3 border-t border-(--color-border)">
+				<div className="p-3 border-t border-border">
 					<button
 						type="button"
 						onClick={() => {
 							setEditingConnection(undefined);
 							setIsModalOpen(true);
 						}}
-						className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-(--color-text-secondary) hover:bg-(--color-surface-elevated) transition-colors"
+						className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-text-secondary hover:bg-surface-elevated transition-colors"
 					>
 						<FolderTree className="w-4 h-4" />
 						Browse Local SQLite

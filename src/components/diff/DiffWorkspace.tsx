@@ -7,12 +7,12 @@ export function DiffWorkspace() {
 			<div className="flex items-center gap-4 mb-6">
 				{/* Source Selector */}
 				<div className="flex-1">
-					<span className="block text-xs font-medium text-(--color-text-muted) mb-1.5 uppercase tracking-wider">
+					<span className="block text-xs font-medium text-text-muted mb-1.5 uppercase tracking-wider">
 						Source
 					</span>
 					<button
 						type="button"
-						className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-(--color-surface) border border-(--color-border) rounded-lg text-sm text-(--color-text-secondary) hover:border-(--color-accent) transition-colors"
+						className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-surface border border-border rounded-lg text-sm text-text-secondary hover:border-accent transition-colors"
 					>
 						<span>Select connection...</span>
 						<ChevronDown className="w-4 h-4" />
@@ -21,19 +21,19 @@ export function DiffWorkspace() {
 
 				{/* Compare Arrow */}
 				<div className="pt-6">
-					<div className="w-10 h-10 rounded-full bg-(--color-accent) flex items-center justify-center">
+					<div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
 						<GitCompare className="w-5 h-5 text-white" />
 					</div>
 				</div>
 
 				{/* Target Selector */}
 				<div className="flex-1">
-					<span className="block text-xs font-medium text-(--color-text-muted) mb-1.5 uppercase tracking-wider">
+					<span className="block text-xs font-medium text-text-muted mb-1.5 uppercase tracking-wider">
 						Target
 					</span>
 					<button
 						type="button"
-						className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-(--color-surface) border border-(--color-border) rounded-lg text-sm text-(--color-text-secondary) hover:border-(--color-accent) transition-colors"
+						className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-surface border border-border rounded-lg text-sm text-text-secondary hover:border-accent transition-colors"
 					>
 						<span>Select connection...</span>
 						<ChevronDown className="w-4 h-4" />
@@ -45,7 +45,7 @@ export function DiffWorkspace() {
 					<button
 						type="button"
 						disabled
-						className="px-6 py-3 bg-(--color-accent) text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-(--color-accent-hover) transition-colors"
+						className="px-6 py-3 bg-accent text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent-hover transition-colors"
 					>
 						Compare
 					</button>
@@ -53,14 +53,14 @@ export function DiffWorkspace() {
 			</div>
 
 			{/* Empty State */}
-			<div className="flex-1 flex flex-col items-center justify-center bg-(--color-surface) rounded-xl border border-(--color-border)">
-				<div className="w-20 h-20 rounded-full bg-(--color-surface-elevated) flex items-center justify-center mb-4">
-					<GitCompare className="w-10 h-10 text-(--color-text-muted)" />
+			<div className="flex-1 flex flex-col items-center justify-center bg-surface rounded-xl border border-border">
+				<div className="w-20 h-20 rounded-full bg-surface-elevated flex items-center justify-center mb-4">
+					<GitCompare className="w-10 h-10 text-text-muted" />
 				</div>
-				<h2 className="text-xl font-semibold text-(--color-text-primary) mb-2">
+				<h2 className="text-xl font-semibold text-text-primary mb-2">
 					Ready to Compare
 				</h2>
-				<p className="text-sm text-(--color-text-secondary) text-center max-w-md">
+				<p className="text-sm text-text-secondary text-center max-w-md">
 					Select a source and target database connection, then choose tables to
 					compare their contents side by side.
 				</p>

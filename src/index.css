@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+/* Custom theme for DB-Diff */
+@theme {
+  /* Color palette - Deep slate dark mode first */
+  --color-background: #0f172a;
+  --color-surface: #1e293b;
+  --color-surface-elevated: #334155;
+  --color-border: #475569;
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+
+  /* Semantic colors */
+  --color-added: #22c55e;
+  --color-added-bg: rgba(34, 197, 94, 0.15);
+  --color-deleted: #ef4444;
+  --color-deleted-bg: rgba(239, 68, 68, 0.15);
+  --color-modified: #eab308;
+  --color-modified-bg: rgba(234, 179, 8, 0.15);
+  --color-selected: #3b82f6;
+  --color-selected-bg: rgba(59, 130, 246, 0.15);
+
+  /* Accent colors */
+  --color-accent: #8b5cf6;
+  --color-accent-hover: #a78bfa;
+
+  /* Spacing */
+  --spacing-sidebar: 280px;
+  --spacing-header: 56px;
+  --spacing-statusbar: 32px;
+}
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}

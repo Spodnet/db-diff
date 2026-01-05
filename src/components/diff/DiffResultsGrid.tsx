@@ -1,5 +1,6 @@
 import { Columns, Minus, Plus, RefreshCw, Rows } from "lucide-react";
 import { useState } from "react";
+import { useDiff } from "../../hooks/useDiff";
 import type { DiffStatus, RowDiff, TableDiffResult } from "../../lib/types";
 
 interface DiffResultsGridProps {
@@ -10,6 +11,9 @@ type ViewMode = "inline" | "side-by-side";
 
 export function DiffResultsGrid({ result }: DiffResultsGridProps) {
 	const [viewMode, setViewMode] = useState<ViewMode>("side-by-side");
+	const { selectedRows, toggleRowSelection, selectAllRows, deselectAllRows } =
+		useDiff();
+
 	const {
 		summary,
 		columns,
@@ -19,6 +23,20 @@ export function DiffResultsGrid({ result }: DiffResultsGridProps) {
 		targetConnection,
 		tableName,
 	} = result;
+
+	const allChangedRowsSelected =
+		rows.filter((r) => r.status !== "unchanged").length > 0 &&
+		rows
+			.filter((r) => r.status !== "unchanged")
+			.every((r) => selectedRows.has(r.primaryKey));
+
+	const handleSelectAll = () => {
+		if (allChangedRowsSelected) {
+			deselectAllRows();
+		} else {
+			selectAllRows();
+		}
+	};
 
 	const getStatusIcon = (status: DiffStatus) => {
 		switch (status) {
@@ -146,6 +164,10 @@ export function DiffResultsGrid({ result }: DiffResultsGridProps) {
 						getStatusBgClass={getStatusBgClass}
 						getStatusTextClass={getStatusTextClass}
 						getStatusIcon={getStatusIcon}
+						selectedRows={selectedRows}
+						onToggleSelection={toggleRowSelection}
+						onSelectAll={handleSelectAll}
+						allSelected={allChangedRowsSelected}
 					/>
 				) : (
 					<InlineView
@@ -156,6 +178,10 @@ export function DiffResultsGrid({ result }: DiffResultsGridProps) {
 						getStatusBgClass={getStatusBgClass}
 						getStatusTextClass={getStatusTextClass}
 						getStatusIcon={getStatusIcon}
+						selectedRows={selectedRows}
+						onToggleSelection={toggleRowSelection}
+						onSelectAll={handleSelectAll}
+						allSelected={allChangedRowsSelected}
 					/>
 				)}
 
@@ -185,6 +211,10 @@ interface ViewProps {
 	getStatusIcon: (status: DiffStatus) => React.ReactNode;
 	sourceConnection?: string;
 	targetConnection?: string;
+	selectedRows: Set<string>;
+	onToggleSelection: (id: string) => void;
+	onSelectAll: () => void;
+	allSelected: boolean;
 }
 
 function SideBySideView({
@@ -197,6 +227,10 @@ function SideBySideView({
 	getStatusBgClass,
 	getStatusTextClass,
 	getStatusIcon,
+	selectedRows,
+	onToggleSelection,
+	onSelectAll,
+	allSelected,
 }: ViewProps) {
 	return (
 		<div className="flex">
@@ -276,14 +310,15 @@ function SideBySideView({
 
 			{/* Target Side */}
 			<div className="flex-1">
-				<div className="sticky top-0 bg-surface-elevated px-3 py-2 border-b border-border">
+				<div className="sticky top-0 bg-surface-elevated px-3 py-2 border-b border-border z-10">
 					<span className="text-xs font-medium text-text-muted uppercase tracking-wider">
 						Target: {targetConnection}
 					</span>
 				</div>
 				<table className="w-full text-sm">
-					<thead className="sticky top-8 bg-surface-elevated">
+					<thead className="sticky top-8 bg-surface-elevated z-10">
 						<tr>
+							<th className="px-2 py-2 w-8 border-b border-border" />
 							<th className="px-2 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider border-b border-border w-8" />
 							{columns.map((col) => (
 								<th
@@ -360,11 +395,23 @@ function InlineView({
 	getStatusBgClass,
 	getStatusTextClass,
 	getStatusIcon,
+	selectedRows,
+	onToggleSelection,
+	onSelectAll,
+	allSelected,
 }: ViewProps) {
 	return (
 		<table className="w-full text-sm">
-			<thead className="sticky top-0 bg-surface-elevated">
+			<thead className="sticky top-0 bg-surface-elevated z-10">
 				<tr>
+					<th className="px-2 py-2 w-8 border-b border-border text-center">
+						<input
+							type="checkbox"
+							checked={allSelected}
+							onChange={onSelectAll}
+							className="rounded border-border text-accent focus:ring-accent bg-surface"
+						/>
+					</th>
 					<th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider border-b border-border w-12">
 						Status
 					</th>
@@ -382,16 +429,29 @@ function InlineView({
 				</tr>
 			</thead>
 			<tbody>
-				{rows.map((row) => (
-					<tr
-						key={row.primaryKey}
-						className={`${getStatusBgClass(row.status)} border-b border-border/50 hover:bg-surface-elevated/50 transition-colors`}
-					>
-						<td className={`px-3 py-2 ${getStatusTextClass(row.status)}`}>
-							<div className="flex items-center justify-center">
-								{getStatusIcon(row.status)}
-							</div>
-						</td>
+				{rows.map((row) => {
+					const isSelected = selectedRows.has(row.primaryKey);
+					return (
+						<tr
+							key={row.primaryKey}
+							className={`${getStatusBgClass(row.status)} ${
+								isSelected ? "bg-accent/10" : ""
+							} border-b border-border/50 hover:bg-surface-elevated/50 transition-colors cursor-pointer`}
+							onClick={() => onToggleSelection(row.primaryKey)}
+						>
+							<td className="px-2 py-2 text-center" onClick={(e) => e.stopPropagation()}>
+								<input
+									type="checkbox"
+									checked={isSelected}
+									onChange={() => onToggleSelection(row.primaryKey)}
+									className="rounded border-border text-accent focus:ring-accent bg-surface cursor-pointer"
+								/>
+							</td>
+							<td className={`px-3 py-2 ${getStatusTextClass(row.status)}`}>
+								<div className="flex items-center justify-center">
+									{getStatusIcon(row.status)}
+								</div>
+							</td>
 						{row.cellDiffs.map((cell) => (
 							<td
 								key={cell.column}
@@ -424,7 +484,8 @@ function InlineView({
 							</td>
 						))}
 					</tr>
-				))}
+				);
+			})}
 			</tbody>
 		</table>
 	);

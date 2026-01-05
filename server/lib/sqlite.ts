@@ -124,3 +124,29 @@ export function getConnection(
 ): Database.Database | undefined {
 	return connections.get(connectionId);
 }
+
+export function executeSQLiteStatements(
+	connectionId: string,
+	statements: string[],
+): { success: boolean; error?: string } {
+	const db = connections.get(connectionId);
+	if (!db) {
+		throw new Error("Connection not found");
+	}
+
+	const transaction = db.transaction((stmts: string[]) => {
+		for (const stmt of stmts) {
+			db.prepare(stmt).run();
+		}
+	});
+
+	try {
+		transaction(statements);
+		return { success: true };
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}

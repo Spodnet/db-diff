@@ -66,3 +66,35 @@ databaseRouter.get(
 		}
 	},
 );
+
+// Execute SQL statements
+databaseRouter.post("/:connectionId/execute", async (req, res) => {
+	const { connectionId } = req.params;
+	const { type, statements } = req.body;
+
+	if (!Array.isArray(statements)) {
+		res.status(400).json({ success: false, error: "statements must be an array" });
+		return;
+	}
+
+	try {
+		if (type === "sqlite") {
+			const { executeSQLiteStatements } = await import("../lib/sqlite");
+			const result = executeSQLiteStatements(connectionId, statements);
+			res.json(result);
+		} else if (type === "mysql") {
+			const { executeMySQLStatements } = await import("../lib/mysql");
+			const result = await executeMySQLStatements(connectionId, statements);
+			res.json(result);
+		} else {
+			res
+				.status(400)
+				.json({ success: false, error: "Unknown connection type" });
+		}
+	} catch (error) {
+		res.status(500).json({
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+		});
+	}
+});

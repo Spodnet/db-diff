@@ -2,16 +2,30 @@ import { createContext, useContext, useState } from "react";
 import type {
 	Connection,
 	DiffSelection,
+	DiffStatus,
 	RowDiff,
 	TableDiffResult,
 	TableInfo,
 } from "../lib/types";
+
+interface MergeOperation {
+	type: "insert" | "update" | "delete";
+	primaryKey: string;
+	sql: string;
+}
 
 interface DiffContextType {
 	selection: DiffSelection;
 	diffResult: TableDiffResult | null;
 	isComparing: boolean;
 	error: string | null;
+	// Merge state
+	selectedRows: Set<string>;
+	mergeOperations: MergeOperation[];
+	isMerging: boolean;
+	mergeError: string | null;
+	mergeSuccess: boolean;
+	// Selection actions
 	setSourceConnection: (connectionId: string | null) => void;
 	setSourceTable: (tableName: string | null) => void;
 	setTargetConnection: (connectionId: string | null) => void;
@@ -23,6 +37,12 @@ interface DiffContextType {
 		targetTable: TableInfo,
 	) => Promise<void>;
 	clearResult: () => void;
+	// Merge actions
+	toggleRowSelection: (primaryKey: string) => void;
+	selectAllRows: () => void;
+	deselectAllRows: () => void;
+	executeMerge: (targetConnection: Connection) => Promise<void>;
+	clearMergeState: () => void;
 }
 
 const DiffContext = createContext<DiffContextType | null>(null);
@@ -38,6 +58,12 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 	const [isComparing, setIsComparing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
+	// Merge state
+	const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+	const [isMerging, setIsMerging] = useState(false);
+	const [mergeError, setMergeError] = useState<string | null>(null);
+	const [mergeSuccess, setMergeSuccess] = useState(false);
+
 	const setSourceConnection = (connectionId: string | null) => {
 		setSelection((prev) => ({
 			...prev,
@@ -45,11 +71,13 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 			sourceTableName: null,
 		}));
 		setDiffResult(null);
+		setSelectedRows(new Set());
 	};
 
 	const setSourceTable = (tableName: string | null) => {
 		setSelection((prev) => ({ ...prev, sourceTableName: tableName }));
 		setDiffResult(null);
+		setSelectedRows(new Set());
 	};
 
 	const setTargetConnection = (connectionId: string | null) => {
@@ -59,11 +87,13 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 			targetTableName: null,
 		}));
 		setDiffResult(null);
+		setSelectedRows(new Set());
 	};
 
 	const setTargetTable = (tableName: string | null) => {
 		setSelection((prev) => ({ ...prev, targetTableName: tableName }));
 		setDiffResult(null);
+		setSelectedRows(new Set());
 	};
 
 	const runComparison = async (
@@ -74,19 +104,19 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 	) => {
 		setIsComparing(true);
 		setError(null);
+		setSelectedRows(new Set());
+		setMergeSuccess(false);
+		setMergeError(null);
 
 		try {
-			// Find primary key column
 			const pkColumn =
 				sourceTable.columns.find((c) => c.primaryKey)?.name || "id";
 
-			// Fetch source data
 			const sourceRes = await fetch(
 				`/api/database/${sourceConnection.id}/tables/${sourceTable.name}/data?type=${sourceConnection.type}`,
 			);
 			const sourceData = await sourceRes.json();
 
-			// Fetch target data
 			const targetRes = await fetch(
 				`/api/database/${targetConnection.id}/tables/${targetTable.name}/data?type=${targetConnection.type}`,
 			);
@@ -96,7 +126,6 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 				throw new Error("Failed to fetch table data");
 			}
 
-			// Build diff
 			const result = computeDiff(
 				sourceConnection.name,
 				targetConnection.name,
@@ -118,6 +147,114 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 	const clearResult = () => {
 		setDiffResult(null);
 		setError(null);
+		setSelectedRows(new Set());
+	};
+
+	// Merge actions
+	const toggleRowSelection = (primaryKey: string) => {
+		setSelectedRows((prev) => {
+			const next = new Set(prev);
+			if (next.has(primaryKey)) {
+				next.delete(primaryKey);
+			} else {
+				next.add(primaryKey);
+			}
+			return next;
+		});
+	};
+
+	const selectAllRows = () => {
+		if (!diffResult) return;
+		const changedRows = diffResult.rows.filter((r) => r.status !== "unchanged");
+		setSelectedRows(new Set(changedRows.map((r) => r.primaryKey)));
+	};
+
+	const deselectAllRows = () => {
+		setSelectedRows(new Set());
+	};
+
+	// Generate merge operations for selected rows
+	const mergeOperations: MergeOperation[] = (() => {
+		if (!diffResult) return [];
+
+		const ops: MergeOperation[] = [];
+		const { tableName, primaryKeyColumn, columns } = diffResult;
+
+		for (const row of diffResult.rows) {
+			if (!selectedRows.has(row.primaryKey)) continue;
+			if (row.status === "unchanged") continue;
+
+			if (row.status === "deleted") {
+				// Row exists in source but not in target - INSERT into target
+				const values = columns.map((col) => formatValue(row.sourceRow?.[col]));
+				ops.push({
+					type: "insert",
+					primaryKey: row.primaryKey,
+					sql: `INSERT INTO ${tableName} (${columns.join(", ")}) VALUES (${values.join(", ")});`,
+				});
+			} else if (row.status === "added") {
+				// Row exists in target but not in source - DELETE from target
+				ops.push({
+					type: "delete",
+					primaryKey: row.primaryKey,
+					sql: `DELETE FROM ${tableName} WHERE ${primaryKeyColumn} = ${formatValue(row.primaryKey)};`,
+				});
+			} else if (row.status === "modified") {
+				// Row exists in both but differs - UPDATE target to match source
+				const setClauses = row.cellDiffs
+					.filter((c) => c.status === "modified")
+					.map((c) => `${c.column} = ${formatValue(c.sourceValue)}`);
+				if (setClauses.length > 0) {
+					ops.push({
+						type: "update",
+						primaryKey: row.primaryKey,
+						sql: `UPDATE ${tableName} SET ${setClauses.join(", ")} WHERE ${primaryKeyColumn} = ${formatValue(row.primaryKey)};`,
+					});
+				}
+			}
+		}
+
+		return ops;
+	})();
+
+	const executeMerge = async (targetConnection: Connection) => {
+		if (mergeOperations.length === 0) return;
+
+		setIsMerging(true);
+		setMergeError(null);
+		setMergeSuccess(false);
+
+		try {
+			const response = await fetch(
+				`/api/database/${targetConnection.id}/execute`,
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						type: targetConnection.type,
+						statements: mergeOperations.map((op) => op.sql),
+					}),
+				},
+			);
+
+			const result = await response.json();
+
+			if (result.success) {
+				setMergeSuccess(true);
+				setSelectedRows(new Set());
+			} else {
+				setMergeError(result.error || "Merge failed");
+			}
+		} catch (e) {
+			setMergeError(e instanceof Error ? e.message : "Merge failed");
+		} finally {
+			setIsMerging(false);
+		}
+	};
+
+	const clearMergeState = () => {
+		setMergeError(null);
+		setMergeSuccess(false);
 	};
 
 	return (
@@ -127,12 +264,22 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 				diffResult,
 				isComparing,
 				error,
+				selectedRows,
+				mergeOperations,
+				isMerging,
+				mergeError,
+				mergeSuccess,
 				setSourceConnection,
 				setSourceTable,
 				setTargetConnection,
 				setTargetTable,
 				runComparison,
 				clearResult,
+				toggleRowSelection,
+				selectAllRows,
+				deselectAllRows,
+				executeMerge,
+				clearMergeState,
 			}}
 		>
 			{children}
@@ -146,6 +293,15 @@ export function useDiff() {
 		throw new Error("useDiff must be used within a DiffProvider");
 	}
 	return context;
+}
+
+// Format value for SQL
+function formatValue(value: unknown): string {
+	if (value === null || value === undefined) return "NULL";
+	if (typeof value === "number") return String(value);
+	if (typeof value === "boolean") return value ? "1" : "0";
+	// Escape single quotes for strings
+	return `'${String(value).replace(/'/g, "''")}'`;
 }
 
 // Diff algorithm
@@ -184,7 +340,6 @@ function computeDiff(
 		const targetRow = targetMap.get(pk);
 
 		if (!sourceRow && targetRow) {
-			// Added in target
 			rows.push({
 				primaryKey: pk,
 				status: "added",
@@ -198,7 +353,6 @@ function computeDiff(
 			});
 			added++;
 		} else if (sourceRow && !targetRow) {
-			// Deleted from target
 			rows.push({
 				primaryKey: pk,
 				status: "deleted",
@@ -212,7 +366,6 @@ function computeDiff(
 			});
 			deleted++;
 		} else if (sourceRow && targetRow) {
-			// Check for modifications
 			const cellDiffs = columns.map((col) => {
 				const sv = sourceRow[col];
 				const tv = targetRow[col];
@@ -243,7 +396,6 @@ function computeDiff(
 		}
 	}
 
-	// Sort: deleted first, then modified, then added, then unchanged
 	rows.sort((a, b) => {
 		const order = { deleted: 0, modified: 1, added: 2, unchanged: 3 };
 		return order[a.status] - order[b.status];

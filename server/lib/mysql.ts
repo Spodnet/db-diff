@@ -153,3 +153,30 @@ export function getConnection(
 ): mysql.Connection | undefined {
 	return connections.get(connectionId);
 }
+
+export async function executeMySQLStatements(
+	connectionId: string,
+	statements: string[],
+): Promise<{ success: boolean; error?: string }> {
+	const connection = connections.get(connectionId);
+	if (!connection) {
+		throw new Error("Connection not found");
+	}
+
+	try {
+		await connection.beginTransaction();
+
+		for (const stmt of statements) {
+			await connection.execute(stmt);
+		}
+
+		await connection.commit();
+		return { success: true };
+	} catch (error) {
+		await connection.rollback();
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}

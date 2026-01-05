@@ -1,15 +1,17 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import type { Connection, ConnectionStatus } from "../lib/types";
+import type { Connection, ConnectionStatus, TableInfo } from "../lib/types";
 
 interface ConnectionContextType {
 	connections: Connection[];
 	connectionStatuses: Map<string, ConnectionStatus>;
+	connectionTables: Map<string, TableInfo[]>;
 	addConnection: (connection: Connection) => void;
 	updateConnection: (connection: Connection) => void;
 	deleteConnection: (id: string) => void;
 	testConnection: (connection: Connection) => Promise<boolean>;
-	connectTo: (id: string) => Promise<void>;
-	disconnect: (id: string) => void;
+	connectTo: (connection: Connection) => Promise<void>;
+	disconnect: (connection: Connection) => Promise<void>;
+	fetchTables: (connection: Connection) => Promise<void>;
 }
 
 const ConnectionContext = createContext<ConnectionContextType | null>(null);
@@ -41,6 +43,9 @@ export function ConnectionProvider({
 	const [connectionStatuses, setConnectionStatuses] = useState<
 		Map<string, ConnectionStatus>
 	>(new Map());
+	const [connectionTables, setConnectionTables] = useState<
+		Map<string, TableInfo[]>
+	>(new Map());
 
 	// Load connections from localStorage on mount
 	useEffect(() => {
@@ -71,6 +76,11 @@ export function ConnectionProvider({
 			next.delete(id);
 			return next;
 		});
+		setConnectionTables((prev) => {
+			const next = new Map(prev);
+			next.delete(id);
+			return next;
+		});
 	};
 
 	const setStatus = (id: string, status: ConnectionStatus) => {
@@ -95,15 +105,20 @@ export function ConnectionProvider({
 		}
 	};
 
-	const connectTo = async (id: string) => {
+	const connectTo = async (connection: Connection) => {
+		const { id } = connection;
 		setStatus(id, { connectionId: id, status: "connecting" });
 		try {
 			const response = await fetch(`/api/connections/${id}/connect`, {
 				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(connection),
 			});
 			const result = await response.json();
 			if (result.success) {
 				setStatus(id, { connectionId: id, status: "connected" });
+				// Automatically fetch tables after connecting
+				await fetchTables(connection);
 			} else {
 				setStatus(id, {
 					connectionId: id,
@@ -120,9 +135,40 @@ export function ConnectionProvider({
 		}
 	};
 
-	const disconnect = (id: string) => {
+	const disconnect = async (connection: Connection) => {
+		const { id, type } = connection;
+		try {
+			await fetch(`/api/connections/${id}/disconnect`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ type }),
+			});
+		} catch (e) {
+			console.error("Failed to disconnect:", e);
+		}
 		setStatus(id, { connectionId: id, status: "disconnected" });
-		// TODO: Call backend to close connection
+		setConnectionTables((prev) => {
+			const next = new Map(prev);
+			next.delete(id);
+			return next;
+		});
+	};
+
+	const fetchTables = async (connection: Connection) => {
+		const { id, type } = connection;
+		try {
+			const response = await fetch(`/api/database/${id}/tables?type=${type}`);
+			const result = await response.json();
+			if (result.success) {
+				setConnectionTables((prev) => {
+					const next = new Map(prev);
+					next.set(id, result.tables);
+					return next;
+				});
+			}
+		} catch (e) {
+			console.error("Failed to fetch tables:", e);
+		}
 	};
 
 	return (
@@ -130,12 +176,14 @@ export function ConnectionProvider({
 			value={{
 				connections,
 				connectionStatuses,
+				connectionTables,
 				addConnection,
 				updateConnection,
 				deleteConnection,
 				testConnection,
 				connectTo,
 				disconnect,
+				fetchTables,
 			}}
 		>
 			{children}

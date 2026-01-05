@@ -5,10 +5,12 @@ import {
 	Edit2,
 	FileText,
 	FolderTree,
+	Loader2,
 	MoreVertical,
 	Plug,
 	Plus,
 	Server,
+	Table,
 	Trash2,
 	Unplug,
 } from "lucide-react";
@@ -27,8 +29,14 @@ export function Sidebar() {
 	);
 	const [contextMenuId, setContextMenuId] = useState<string | null>(null);
 
-	const { connections, connectionStatuses, deleteConnection, disconnect } =
-		useConnections();
+	const {
+		connections,
+		connectionStatuses,
+		connectionTables,
+		deleteConnection,
+		disconnect,
+		connectTo,
+	} = useConnections();
 
 	const toggleExpanded = (id: string) => {
 		setExpandedConnections((prev) => {
@@ -53,6 +61,18 @@ export function Sidebar() {
 		setContextMenuId(null);
 	};
 
+	const handleConnect = async (connection: Connection) => {
+		setContextMenuId(null);
+		await connectTo(connection);
+		// Auto-expand after connecting
+		setExpandedConnections((prev) => new Set(prev).add(connection.id));
+	};
+
+	const handleDisconnect = async (connection: Connection) => {
+		setContextMenuId(null);
+		await disconnect(connection);
+	};
+
 	const handleModalClose = () => {
 		setIsModalOpen(false);
 		setEditingConnection(undefined);
@@ -70,6 +90,14 @@ export function Sidebar() {
 			default:
 				return "bg-text-muted";
 		}
+	};
+
+	const getStatusIndicator = (id: string) => {
+		const status = connectionStatuses.get(id);
+		if (status?.status === "connecting") {
+			return <Loader2 className="w-3 h-3 animate-spin text-modified" />;
+		}
+		return <span className={`w-2 h-2 rounded-full ${getStatusColor(id)}`} />;
 	};
 
 	return (
@@ -108,100 +136,133 @@ export function Sidebar() {
 						</div>
 					) : (
 						<div className="space-y-1">
-							{connections.map((connection) => (
-								<div key={connection.id} className="group relative">
-									{/* Connection Row */}
-									<button
-										type="button"
-										onClick={() => toggleExpanded(connection.id)}
-										className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-text-primary hover:bg-surface-elevated transition-colors"
-									>
-										{expandedConnections.has(connection.id) ? (
-											<ChevronDown className="w-4 h-4 text-text-muted" />
-										) : (
-											<ChevronRight className="w-4 h-4 text-text-muted" />
-										)}
-										{connection.type === "sqlite" ? (
-											<FileText className="w-4 h-4 text-accent" />
-										) : (
-											<Server className="w-4 h-4 text-accent" />
-										)}
-										<span className="flex-1 text-left truncate">
-											{connection.name}
-										</span>
-										<span
-											className={`w-2 h-2 rounded-full ${getStatusColor(connection.id)}`}
-										/>
-									</button>
+							{connections.map((connection) => {
+								const status = connectionStatuses.get(connection.id);
+								const tables = connectionTables.get(connection.id);
+								const isConnected = status?.status === "connected";
+								const isExpanded = expandedConnections.has(connection.id);
 
-									{/* Context Menu Trigger */}
-									<button
-										type="button"
-										onClick={(e) => {
-											e.stopPropagation();
-											setContextMenuId(
-												contextMenuId === connection.id ? null : connection.id,
-											);
-										}}
-										className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-surface-elevated transition-all"
-									>
-										<MoreVertical className="w-4 h-4 text-text-muted" />
-									</button>
-
-									{/* Context Menu */}
-									{contextMenuId === connection.id && (
-										<div className="absolute right-0 top-8 z-10 w-40 bg-surface-elevated border border-border rounded-lg shadow-xl py-1">
-											<button
-												type="button"
-												onClick={() => handleEdit(connection)}
-												className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface transition-colors"
-											>
-												<Edit2 className="w-4 h-4" />
-												Edit
-											</button>
-											{connectionStatuses.get(connection.id)?.status ===
-											"connected" ? (
-												<button
-													type="button"
-													onClick={() => disconnect(connection.id)}
-													className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface transition-colors"
-												>
-													<Unplug className="w-4 h-4" />
-													Disconnect
-												</button>
+								return (
+									<div key={connection.id} className="group relative">
+										{/* Connection Row */}
+										<button
+											type="button"
+											onClick={() => toggleExpanded(connection.id)}
+											className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-text-primary hover:bg-surface-elevated transition-colors"
+										>
+											{isExpanded ? (
+												<ChevronDown className="w-4 h-4 text-text-muted" />
 											) : (
+												<ChevronRight className="w-4 h-4 text-text-muted" />
+											)}
+											{connection.type === "sqlite" ? (
+												<FileText className="w-4 h-4 text-accent" />
+											) : (
+												<Server className="w-4 h-4 text-accent" />
+											)}
+											<span className="flex-1 text-left truncate">
+												{connection.name}
+											</span>
+											{getStatusIndicator(connection.id)}
+										</button>
+
+										{/* Context Menu Trigger */}
+										<button
+											type="button"
+											onClick={(e) => {
+												e.stopPropagation();
+												setContextMenuId(
+													contextMenuId === connection.id
+														? null
+														: connection.id,
+												);
+											}}
+											className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-surface-elevated transition-all"
+										>
+											<MoreVertical className="w-4 h-4 text-text-muted" />
+										</button>
+
+										{/* Context Menu */}
+										{contextMenuId === connection.id && (
+											<div className="absolute right-0 top-8 z-10 w-40 bg-surface-elevated border border-border rounded-lg shadow-xl py-1">
 												<button
 													type="button"
-													onClick={() => {
-														/* TODO: connect */
-													}}
+													onClick={() => handleEdit(connection)}
 													className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface transition-colors"
 												>
-													<Plug className="w-4 h-4" />
-													Connect
+													<Edit2 className="w-4 h-4" />
+													Edit
 												</button>
-											)}
-											<button
-												type="button"
-												onClick={() => handleDelete(connection.id)}
-												className="w-full flex items-center gap-2 px-3 py-2 text-sm text-deleted hover:bg-surface transition-colors"
-											>
-												<Trash2 className="w-4 h-4" />
-												Delete
-											</button>
-										</div>
-									)}
+												{isConnected ? (
+													<button
+														type="button"
+														onClick={() => handleDisconnect(connection)}
+														className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface transition-colors"
+													>
+														<Unplug className="w-4 h-4" />
+														Disconnect
+													</button>
+												) : (
+													<button
+														type="button"
+														onClick={() => handleConnect(connection)}
+														className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface transition-colors"
+													>
+														<Plug className="w-4 h-4" />
+														Connect
+													</button>
+												)}
+												<button
+													type="button"
+													onClick={() => handleDelete(connection.id)}
+													className="w-full flex items-center gap-2 px-3 py-2 text-sm text-deleted hover:bg-surface transition-colors"
+												>
+													<Trash2 className="w-4 h-4" />
+													Delete
+												</button>
+											</div>
+										)}
 
-									{/* Expanded Content (tables will go here) */}
-									{expandedConnections.has(connection.id) && (
-										<div className="ml-6 pl-2 border-l border-border">
-											<p className="text-xs text-text-muted py-2">
-												Connect to view tables
-											</p>
-										</div>
-									)}
-								</div>
-							))}
+										{/* Expanded Content - Tables */}
+										{isExpanded && (
+											<div className="ml-6 pl-2 border-l border-border">
+												{!isConnected ? (
+													<button
+														type="button"
+														onClick={() => handleConnect(connection)}
+														className="flex items-center gap-2 text-xs text-text-muted py-2 hover:text-accent transition-colors"
+													>
+														<Plug className="w-3 h-3" />
+														Click to connect
+													</button>
+												) : tables && tables.length > 0 ? (
+													<div className="py-1 space-y-0.5">
+														{tables.map((table) => (
+															<button
+																key={table.name}
+																type="button"
+																className="w-full flex items-center gap-2 px-2 py-1 rounded text-xs text-text-secondary hover:bg-surface-elevated hover:text-text-primary transition-colors"
+															>
+																<Table className="w-3 h-3 text-text-muted" />
+																<span className="flex-1 text-left truncate">
+																	{table.name}
+																</span>
+																<span className="text-text-muted">
+																	{table.rowCount.toLocaleString()}
+																</span>
+															</button>
+														))}
+													</div>
+												) : (
+													<p className="text-xs text-text-muted py-2">
+														No tables found
+													</p>
+												)}
+											</div>
+										)}
+									</div>
+								);
+							})}
 						</div>
 					)}
 				</div>

@@ -64,7 +64,6 @@ export function Sidebar() {
 	const handleConnect = async (connection: Connection) => {
 		setContextMenuId(null);
 		await connectTo(connection);
-		// Auto-expand after connecting
 		setExpandedConnections((prev) => new Set(prev).add(connection.id));
 	};
 
@@ -144,43 +143,49 @@ export function Sidebar() {
 
 								return (
 									<div key={connection.id} className="group relative">
-										{/* Connection Row */}
-										<button
-											type="button"
-											onClick={() => toggleExpanded(connection.id)}
-											className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-text-primary hover:bg-surface-elevated transition-colors"
-										>
-											{isExpanded ? (
-												<ChevronDown className="w-4 h-4 text-text-muted" />
-											) : (
-												<ChevronRight className="w-4 h-4 text-text-muted" />
-											)}
-											{connection.type === "sqlite" ? (
-												<FileText className="w-4 h-4 text-accent" />
-											) : (
-												<Server className="w-4 h-4 text-accent" />
-											)}
-											<span className="flex-1 text-left truncate">
-												{connection.name}
-											</span>
-											{getStatusIndicator(connection.id)}
-										</button>
-
-										{/* Context Menu Trigger */}
-										<button
-											type="button"
-											onClick={(e) => {
-												e.stopPropagation();
-												setContextMenuId(
-													contextMenuId === connection.id
-														? null
-														: connection.id,
-												);
-											}}
-											className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-surface-elevated transition-all"
-										>
-											<MoreVertical className="w-4 h-4 text-text-muted" />
-										</button>
+										{/* Connection Row - restructured flex layout */}
+										<div className="flex items-center gap-1 pr-1">
+											{/* Main clickable area */}
+											<button
+												type="button"
+												onClick={() => toggleExpanded(connection.id)}
+												className="flex-1 flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-text-primary hover:bg-surface-elevated transition-colors"
+											>
+												{isExpanded ? (
+													<ChevronDown className="w-4 h-4 text-text-muted" />
+												) : (
+													<ChevronRight className="w-4 h-4 text-text-muted" />
+												)}
+												{connection.type === "sqlite" ? (
+													<FileText className="w-4 h-4 text-accent" />
+												) : (
+													<Server className="w-4 h-4 text-accent" />
+												)}
+												<span className="flex-1 text-left truncate">
+													{connection.name}
+												</span>
+											</button>
+											{/* Menu button - fixed position between name and status */}
+											<button
+												type="button"
+												onClick={(e) => {
+													e.stopPropagation();
+													setContextMenuId(
+														contextMenuId === connection.id
+															? null
+															: connection.id,
+													);
+												}}
+												className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-surface-elevated transition-all"
+												aria-label="Connection options"
+											>
+												<MoreVertical className="w-4 h-4 text-text-muted" />
+											</button>
+											{/* Status indicator - fixed width for alignment */}
+											<div className="w-5 flex justify-center">
+												{getStatusIndicator(connection.id)}
+											</div>
+										</div>
 
 										{/* Context Menu */}
 										{contextMenuId === connection.id && (

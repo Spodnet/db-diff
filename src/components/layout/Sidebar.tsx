@@ -4,7 +4,6 @@ import {
 	Database,
 	Edit2,
 	FileText,
-	FolderTree,
 	Loader2,
 	MoreVertical,
 	Plug,
@@ -286,21 +285,6 @@ export function Sidebar() {
 							})}
 						</div>
 					)}
-				</div>
-
-				{/* Quick Actions */}
-				<div className="p-3 border-t border-border">
-					<button
-						type="button"
-						onClick={() => {
-							setEditingConnection(undefined);
-							setIsModalOpen(true);
-						}}
-						className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-text-secondary hover:bg-surface-elevated transition-colors"
-					>
-						<FolderTree className="w-4 h-4" />
-						Browse Local SQLite
-					</button>
 				</div>
 			</aside>
 

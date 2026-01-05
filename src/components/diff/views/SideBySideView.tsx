@@ -18,16 +18,16 @@ export function SideBySideView({
 	return (
 		<div className="flex">
 			{/* Source Side */}
-			<div className="flex-1 border-r border-border">
+			<div className="flex-1 border-r border-border min-w-0">
 				<div className="sticky top-0 bg-surface-elevated px-3 py-2 border-b border-border">
 					<span className="text-xs font-medium text-text-muted uppercase tracking-wider">
 						Source: {sourceConnection}
 					</span>
 				</div>
-				<table className="w-full text-sm">
+				<table className="w-full text-sm table-fixed">
 					<thead className="sticky top-8 bg-surface-elevated">
 						<tr>
-							<th className="px-2 py-2 w-8 border-b border-border text-center">
+							<th className="px-2 py-2 w-8 min-w-8 max-w-8 border-b border-border text-center">
 								<input
 									type="checkbox"
 									checked={allSelected}
@@ -35,11 +35,11 @@ export function SideBySideView({
 									className="rounded border-border text-accent focus:ring-accent bg-surface"
 								/>
 							</th>
-							<th className="px-2 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider border-b border-border w-8" />
+							<th className="px-2 py-2 w-8 min-w-8 max-w-8 text-left text-xs font-medium text-text-muted uppercase tracking-wider border-b border-border" />
 							{columns.map((col) => (
 								<th
 									key={col}
-									className="px-2 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider border-b border-border"
+									className="px-2 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider border-b border-border truncate"
 								>
 									{col}
 									{col === primaryKeyColumn && (
@@ -87,7 +87,7 @@ export function SideBySideView({
 										return (
 											<td
 												key={col}
-												className={`px-2 py-2 font-mono text-xs ${
+												className={`px-2 py-2 font-mono text-xs truncate ${
 													isAdded
 														? "text-text-muted"
 														: isDeleted
@@ -96,6 +96,11 @@ export function SideBySideView({
 																? "text-modified bg-modified-bg/50 font-medium"
 																: "text-text-primary"
 												}`}
+												title={
+													!isAdded
+														? getCellValue(row, col, "source")
+														: undefined
+												}
 											>
 												{isAdded ? "—" : getCellValue(row, col, "source")}
 											</td>
@@ -109,21 +114,20 @@ export function SideBySideView({
 			</div>
 
 			{/* Target Side */}
-			<div className="flex-1">
+			<div className="flex-1 min-w-0">
 				<div className="sticky top-0 bg-surface-elevated px-3 py-2 border-b border-border z-10">
 					<span className="text-xs font-medium text-text-muted uppercase tracking-wider">
 						Target: {targetConnection}
 					</span>
 				</div>
-				<table className="w-full text-sm">
+				<table className="w-full text-sm table-fixed">
 					<thead className="sticky top-8 bg-surface-elevated z-10">
 						<tr>
-							<th className="px-2 py-2 w-8 border-b border-border" />
-							<th className="px-2 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider border-b border-border w-8" />
+							<th className="h-[36.5px] px-2 py-2 w-8 min-w-8 max-w-8 text-left text-xs font-medium text-text-muted uppercase tracking-wider border-b border-border"></th>
 							{columns.map((col) => (
 								<th
 									key={col}
-									className="px-2 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider border-b border-border"
+									className="px-2 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider border-b border-border truncate"
 								>
 									{col}
 									{col === primaryKeyColumn && (
@@ -167,7 +171,7 @@ export function SideBySideView({
 										return (
 											<td
 												key={col}
-												className={`px-2 py-2 font-mono text-xs ${
+												className={`px-2 py-2 font-mono text-xs truncate ${
 													isDeleted
 														? "text-text-muted"
 														: isAdded
@@ -176,6 +180,11 @@ export function SideBySideView({
 																? "text-modified bg-modified-bg/50 font-medium"
 																: "text-text-primary"
 												}`}
+												title={
+													!isDeleted
+														? getCellValue(row, col, "target")
+														: undefined
+												}
 											>
 												{isDeleted ? "—" : getCellValue(row, col, "target")}
 											</td>

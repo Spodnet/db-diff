@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useConnections } from "../../hooks/useConnections";
+import { useView } from "../../hooks/useView";
 import type { Connection } from "../../lib/types";
 import { ConnectionFormModal } from "../connections/ConnectionFormModal";
 
@@ -37,6 +38,8 @@ export function Sidebar() {
 		disconnect,
 		connectTo,
 	} = useConnections();
+
+	const { openTableTab } = useView();
 
 	const toggleExpanded = (id: string) => {
 		setExpandedConnections((prev) => {
@@ -157,9 +160,19 @@ export function Sidebar() {
 													<ChevronRight className="w-4 h-4 text-text-muted" />
 												)}
 												{connection.type === "sqlite" ? (
-													<FileText className="w-4 h-4 text-accent" />
+													<FileText
+														className="w-4 h-4"
+														style={{
+															color: connection.color || "var(--color-accent)",
+														}}
+													/>
 												) : (
-													<Server className="w-4 h-4 text-accent" />
+													<Server
+														className="w-4 h-4"
+														style={{
+															color: connection.color || "var(--color-accent)",
+														}}
+													/>
 												)}
 												<span className="flex-1 text-left truncate">
 													{connection.name}
@@ -246,6 +259,9 @@ export function Sidebar() {
 															<button
 																key={table.name}
 																type="button"
+																onDoubleClick={() =>
+																	openTableTab(connection, table.name)
+																}
 																className="w-full flex items-center gap-2 px-2 py-1 rounded text-xs text-text-secondary hover:bg-surface-elevated hover:text-text-primary transition-colors"
 															>
 																<Table className="w-3 h-3 text-text-muted" />

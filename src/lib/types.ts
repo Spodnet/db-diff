@@ -8,6 +8,7 @@ export interface BaseConnection {
 	type: ConnectionType;
 	createdAt: string;
 	lastUsed?: string;
+	color?: string;
 }
 
 export interface SQLiteConnection extends BaseConnection {

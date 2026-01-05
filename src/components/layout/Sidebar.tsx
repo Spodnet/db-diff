@@ -8,6 +8,7 @@ import {
 	MoreVertical,
 	Plug,
 	Plus,
+	RefreshCw,
 	Server,
 	Table,
 	Trash2,
@@ -36,6 +37,7 @@ export function Sidebar() {
 		deleteConnection,
 		disconnect,
 		connectTo,
+		fetchTables,
 	} = useConnections();
 
 	const { openTableTab } = useView();
@@ -72,6 +74,11 @@ export function Sidebar() {
 	const handleDisconnect = async (connection: Connection) => {
 		setContextMenuId(null);
 		await disconnect(connection);
+	};
+
+	const handleRefresh = async (connection: Connection) => {
+		setContextMenuId(null);
+		await fetchTables(connection);
 	};
 
 	const handleModalClose = () => {
@@ -202,6 +209,14 @@ export function Sidebar() {
 										{/* Context Menu */}
 										{contextMenuId === connection.id && (
 											<div className="absolute right-0 top-8 z-10 w-40 bg-surface-elevated border border-border rounded-lg shadow-xl py-1">
+												<button
+													type="button"
+													onClick={() => handleRefresh(connection)}
+													className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface transition-colors"
+												>
+													<RefreshCw className="w-4 h-4" />
+													Refresh
+												</button>
 												<button
 													type="button"
 													onClick={() => handleEdit(connection)}

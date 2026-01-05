@@ -219,7 +219,12 @@ export function ConnectionProvider({
 			if (result.success) {
 				setConnectionTables((prev) => {
 					const next = new Map(prev);
-					next.set(id, result.tables);
+					next.set(
+						id,
+						result.tables.sort((a: TableInfo, b: TableInfo) =>
+							a.name.localeCompare(b.name),
+						),
+					);
 					return next;
 				});
 			}

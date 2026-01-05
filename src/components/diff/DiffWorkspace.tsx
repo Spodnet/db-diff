@@ -1,24 +1,14 @@
-import {
-	AlertCircle,
-	ArrowRight,
-	Check,
-	CheckCircle,
-	ChevronDown,
-	Database,
-	GitCompare,
-	GitMerge,
-	Loader2,
-	Table as TableIcon,
-	X,
-} from "lucide-react";
+import { GitCompare, GitMerge, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useConnections } from "../../hooks/useConnections";
 import { useDiff } from "../../hooks/useDiff";
 import type { Connection, TableInfo } from "../../lib/types";
+import { ConnectionSelector } from "./ConnectionSelector";
 import { DiffResultsGrid } from "./DiffResultsGrid";
+import { MergeConfirmationModal } from "./modals/MergeConfirmationModal";
 
 export function DiffWorkspace() {
-	const { connections, connectionStatuses, connectTo, fetchTables, connectionTables } =
+	const { connections, connectionStatuses, connectTo, connectionTables } =
 		useConnections();
 	const {
 		selection,
@@ -131,86 +121,26 @@ export function DiffWorkspace() {
 			{/* Source/Target Selection */}
 			<div className="flex items-center gap-4 mb-6">
 				{/* Source Selector */}
-				<div className="flex-1">
-					<span className="block text-xs font-medium text-text-muted mb-1.5 uppercase tracking-wider">
-						Source
-					</span>
-					<div className="space-y-2">
-						{/* Connection Dropdown */}
-						<div className="relative">
-							<button
-								type="button"
-								onClick={() => setSourceDropdownOpen(!sourceDropdownOpen)}
-								className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-surface border border-border rounded-lg text-sm hover:border-accent transition-colors"
-							>
-								<span
-									className={
-										sourceConnection
-											? "text-text-primary"
-											: "text-text-secondary"
-									}
-								>
-									{sourceConnection?.name || "Select connection..."}
-								</span>
-								<ChevronDown className="w-4 h-4 text-text-muted" />
-							</button>
-							{sourceDropdownOpen && (
-								<div className="absolute z-10 top-full mt-1 w-full bg-surface-elevated border border-border rounded-lg shadow-xl py-1">
-									{connections.length === 0 ? (
-										<p className="px-4 py-2 text-sm text-text-muted">
-											No connections available
-										</p>
-									) : (
-										connections.map((conn) => {
-											const status = connectionStatuses.get(conn.id);
-											const isConnected = status?.status === "connected";
-											return (
-												<button
-													key={conn.id}
-													type="button"
-													onClick={() => {
-														if (isConnected) {
-															setSourceConnection(conn.id);
-															setSourceDropdownOpen(false);
-														} else {
-															handleConnectAndSelect(conn, "source");
-														}
-													}}
-													className="w-full flex items-center gap-2 px-4 py-2 text-sm text-text-primary hover:bg-surface transition-colors"
-												>
-													<Database className="w-4 h-4 text-accent" />
-													<span className="flex-1 text-left">{conn.name}</span>
-													{isConnected ? (
-														<span className="w-2 h-2 rounded-full bg-added" />
-													) : (
-														<span className="text-xs text-text-muted">
-															Connect
-														</span>
-													)}
-												</button>
-											);
-										})
-									)}
-								</div>
-							)}
-						</div>
-						{/* Table Dropdown */}
-						{selection.sourceConnectionId && (
-							<select
-								value={selection.sourceTableName || ""}
-								onChange={(e) => setSourceTable(e.target.value || null)}
-								className="w-full px-4 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary focus:border-accent focus:outline-none"
-							>
-								<option value="">Select table...</option>
-								{sourceTables.map((table) => (
-									<option key={table.name} value={table.name}>
-										{table.name} ({table.rowCount} rows)
-									</option>
-								))}
-							</select>
-						)}
-					</div>
-				</div>
+				<ConnectionSelector
+					label="Source"
+					connections={connections}
+					connectionStatuses={connectionStatuses}
+					selectedConnection={sourceConnection}
+					onConnectionClick={(conn) => {
+						const status = connectionStatuses.get(conn.id);
+						if (status?.status === "connected") {
+							setSourceConnection(conn.id);
+							setSourceDropdownOpen(false);
+						} else {
+							handleConnectAndSelect(conn, "source");
+						}
+					}}
+					tables={sourceTables}
+					selectedTableName={selection.sourceTableName}
+					onTableSelect={setSourceTable}
+					isOpen={sourceDropdownOpen}
+					onToggle={() => setSourceDropdownOpen(!sourceDropdownOpen)}
+				/>
 
 				{/* Compare Arrow */}
 				<div className="pt-6">
@@ -220,86 +150,26 @@ export function DiffWorkspace() {
 				</div>
 
 				{/* Target Selector */}
-				<div className="flex-1">
-					<span className="block text-xs font-medium text-text-muted mb-1.5 uppercase tracking-wider">
-						Target
-					</span>
-					<div className="space-y-2">
-						{/* Connection Dropdown */}
-						<div className="relative">
-							<button
-								type="button"
-								onClick={() => setTargetDropdownOpen(!targetDropdownOpen)}
-								className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-surface border border-border rounded-lg text-sm hover:border-accent transition-colors"
-							>
-								<span
-									className={
-										targetConnection
-											? "text-text-primary"
-											: "text-text-secondary"
-									}
-								>
-									{targetConnection?.name || "Select connection..."}
-								</span>
-								<ChevronDown className="w-4 h-4 text-text-muted" />
-							</button>
-							{targetDropdownOpen && (
-								<div className="absolute z-10 top-full mt-1 w-full bg-surface-elevated border border-border rounded-lg shadow-xl py-1">
-									{connections.length === 0 ? (
-										<p className="px-4 py-2 text-sm text-text-muted">
-											No connections available
-										</p>
-									) : (
-										connections.map((conn) => {
-											const status = connectionStatuses.get(conn.id);
-											const isConnected = status?.status === "connected";
-											return (
-												<button
-													key={conn.id}
-													type="button"
-													onClick={() => {
-														if (isConnected) {
-															setTargetConnection(conn.id);
-															setTargetDropdownOpen(false);
-														} else {
-															handleConnectAndSelect(conn, "target");
-														}
-													}}
-													className="w-full flex items-center gap-2 px-4 py-2 text-sm text-text-primary hover:bg-surface transition-colors"
-												>
-													<Database className="w-4 h-4 text-accent" />
-													<span className="flex-1 text-left">{conn.name}</span>
-													{isConnected ? (
-														<span className="w-2 h-2 rounded-full bg-added" />
-													) : (
-														<span className="text-xs text-text-muted">
-															Connect
-														</span>
-													)}
-												</button>
-											);
-										})
-									)}
-								</div>
-							)}
-						</div>
-						{/* Table Dropdown */}
-						{selection.targetConnectionId && (
-							<select
-								value={selection.targetTableName || ""}
-								onChange={(e) => setTargetTable(e.target.value || null)}
-								className="w-full px-4 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary focus:border-accent focus:outline-none"
-							>
-								<option value="">Select table...</option>
-								{targetTables.map((table) => (
-									<option key={table.name} value={table.name}>
-										{table.name} ({table.rowCount} rows)
-									</option>
-								))}
-							</select>
-						)}
-					</div>
-				</div>
+				<ConnectionSelector
+					label="Target"
+					connections={connections}
+					connectionStatuses={connectionStatuses}
+					selectedConnection={targetConnection}
+					onConnectionClick={(conn) => {
+						const status = connectionStatuses.get(conn.id);
+						if (status?.status === "connected") {
+							setTargetConnection(conn.id);
+							setTargetDropdownOpen(false);
+						} else {
+							handleConnectAndSelect(conn, "target");
+						}
+					}}
+					tables={targetTables}
+					selectedTableName={selection.targetTableName}
+					onTableSelect={setTargetTable}
+					isOpen={targetDropdownOpen}
+					onToggle={() => setTargetDropdownOpen(!targetDropdownOpen)}
+				/>
 
 				{/* Compare Button */}
 				<div className="flex flex-col gap-2 pt-6">
@@ -359,114 +229,19 @@ export function DiffWorkspace() {
 
 			{/* Merge Confirmation Modal */}
 			{showMergeModal && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-					<div className="bg-surface border border-border rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
-						<div className="flex items-center justify-between p-4 border-b border-border">
-							<h3 className="text-lg font-medium text-text-primary flex items-center gap-2">
-								<GitMerge className="w-5 h-5 text-accent" />
-								Confirm Merge
-							</h3>
-							<button
-								type="button"
-								onClick={() => setShowMergeModal(false)}
-								className="text-text-secondary hover:text-text-primary"
-							>
-								<X className="w-5 h-5" />
-							</button>
-						</div>
-
-						<div className="p-6 flex-1 overflow-auto">
-							<div className="mb-6">
-								<p className="text-text-primary mb-2">
-									You are about to apply <strong>{selectedRows.size}</strong>{" "}
-									change{selectedRows.size !== 1 ? "s" : ""} to{" "}
-									<span className="font-mono text-accent">
-										{targetConnection?.name}
-									</span>
-									.
-								</p>
-								<div className="p-3 bg-surface-elevated rounded-lg border border-border text-sm text-text-secondary font-mono">
-									{diffResult?.sourceConnection} ({diffResult?.tableName}){" "}
-									<ArrowRight className="inline w-3 h-3 mx-1" />{" "}
-									{diffResult?.targetConnection} ({diffResult?.tableName})
-								</div>
-							</div>
-
-							<div className="space-y-4">
-								<h4 className="text-sm font-medium text-text-muted uppercase tracking-wider">
-									SQL Operations Preview
-								</h4>
-								<div className="bg-black/30 rounded-lg p-4 font-mono text-xs overflow-auto max-h-60 border border-border">
-									{mergeOperations.map((op, i) => (
-										// biome-ignore lint/suspicious/noArrayIndexKey: pure display
-										<div key={i} className="mb-1 last:mb-0">
-											<span
-												className={
-													op.type === "insert"
-														? "text-success"
-														: op.type === "delete"
-															? "text-error"
-															: "text-warning"
-												}
-											>
-												{op.type.toUpperCase()}
-											</span>{" "}
-											<span className="text-text-secondary">{op.sql}</span>
-										</div>
-									))}
-								</div>
-							</div>
-
-							{mergeError && (
-								<div className="mt-4 p-3 bg-error/10 border border-error/20 rounded-lg flex items-center gap-2 text-error text-sm">
-									<AlertCircle className="w-4 h-4" />
-									{mergeError}
-								</div>
-							)}
-
-							{mergeSuccess && (
-								<div className="mt-4 p-3 bg-success/10 border border-success/20 rounded-lg flex items-center gap-2 text-success text-sm">
-									<CheckCircle className="w-4 h-4" />
-									Merge completed successfully!
-								</div>
-							)}
-						</div>
-
-						<div className="p-4 border-t border-border flex justify-end gap-3 bg-surface-elevated rounded-b-xl">
-							<button
-								type="button"
-								onClick={() => setShowMergeModal(false)}
-								className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors"
-								disabled={isMerging}
-							>
-								Cancel
-							</button>
-							<button
-								type="button"
-								onClick={handleConfirmMerge}
-								disabled={isMerging || mergeSuccess}
-								className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all shadow-lg shadow-accent/20"
-							>
-								{isMerging ? (
-									<>
-										<Loader2 className="w-4 h-4 animate-spin" />
-										Merging...
-									</>
-								) : mergeSuccess ? (
-									<>
-										<Check className="w-4 h-4" />
-										Merged
-									</>
-								) : (
-									<>
-										<GitMerge className="w-4 h-4" />
-										Confirm Merge
-									</>
-								)}
-							</button>
-						</div>
-					</div>
-				</div>
+				<MergeConfirmationModal
+					onClose={() => setShowMergeModal(false)}
+					onConfirm={handleConfirmMerge}
+					targetConnection={targetConnection}
+					sourceConnectionName={diffResult?.sourceConnection}
+					targetConnectionName={diffResult?.targetConnection}
+					tableName={diffResult?.tableName}
+					selectedCount={selectedRows.size}
+					mergeOperations={mergeOperations}
+					isMerging={isMerging}
+					mergeError={mergeError}
+					mergeSuccess={mergeSuccess}
+				/>
 			)}
 		</div>
 	);

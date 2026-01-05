@@ -73,7 +73,9 @@ databaseRouter.post("/:connectionId/execute", async (req, res) => {
 	const { type, statements } = req.body;
 
 	if (!Array.isArray(statements)) {
-		res.status(400).json({ success: false, error: "statements must be an array" });
+		res
+			.status(400)
+			.json({ success: false, error: "statements must be an array" });
 		return;
 	}
 

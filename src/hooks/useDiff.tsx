@@ -2,7 +2,6 @@ import { createContext, useContext, useState } from "react";
 import type {
 	Connection,
 	DiffSelection,
-	DiffStatus,
 	RowDiff,
 	TableDiffResult,
 	TableInfo,

@@ -102,19 +102,22 @@ export function TableDataWorkspace({
 									{data.rows.map((row, i) => (
 										// biome-ignore lint/suspicious/noArrayIndexKey: no standard id available for generic table
 										<tr key={i} className="hover:bg-surface-elevated/50">
-											{Object.values(row).map((cell, j) => (
-												// biome-ignore lint/suspicious/noArrayIndexKey: no standard id
-												<td
-													key={j}
-													className="px-4 py-3 text-text-primary whitespace-nowrap"
-												>
-													{cell === null ? (
-														<span className="text-text-muted italic">NULL</span>
-													) : (
-														String(cell)
-													)}
-												</td>
-											))}
+											{Object.values(row).map((cell, j) => {
+												return (
+													<td
+														key={`${String(cell)}-${j}`}
+														className="px-4 py-3 text-text-primary whitespace-nowrap"
+													>
+														{cell === null ? (
+															<span className="text-text-muted italic">
+																NULL
+															</span>
+														) : (
+															String(cell)
+														)}
+													</td>
+												);
+											})}
 										</tr>
 									))}
 								</tbody>

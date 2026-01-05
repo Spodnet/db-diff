@@ -81,18 +81,21 @@ export function ConnectionSelector({
 				</div>
 				{/* Table Dropdown */}
 				{selectedConnection && (
-					<select
-						value={selectedTableName || ""}
-						onChange={(e) => onTableSelect(e.target.value || null)}
-						className="w-full px-4 py-2 bg-surface border border-border rounded-lg text-sm text-text-primary focus:border-accent focus:outline-none"
-					>
-						<option value="">Select table...</option>
-						{tables.map((table) => (
-							<option key={table.name} value={table.name}>
-								{table.name} ({table.rowCount} rows)
-							</option>
-						))}
-					</select>
+					<div className="relative">
+						<select
+							value={selectedTableName || ""}
+							onChange={(e) => onTableSelect(e.target.value || null)}
+							className="w-full px-4 py-3 pr-10 bg-surface border border-border rounded-lg text-sm text-text-primary appearance-none focus:border-accent focus:outline-none cursor-pointer"
+						>
+							<option value="">Select table...</option>
+							{tables.map((table) => (
+								<option key={table.name} value={table.name}>
+									{table.name} ({table.rowCount} rows)
+								</option>
+							))}
+						</select>
+						<ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+					</div>
 				)}
 			</div>
 		</div>

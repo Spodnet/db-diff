@@ -5,14 +5,18 @@ export function TabBar() {
 	const { tabs, activeTabId, activateTab, closeTab } = useView();
 
 	return (
-		<div className="flex items-center bg-surface border-b border-border overflow-x-auto no-scrollbar">
+		<div
+			role="tablist"
+			className="flex items-center bg-surface border-b border-border overflow-x-auto no-scrollbar"
+		>
 			{tabs.map((tab) => {
 				const isActive = tab.id === activeTabId;
 				return (
 					<div
 						key={tab.id}
-						role="button"
-						tabIndex={0}
+						role="tab"
+						aria-selected={isActive}
+						tabIndex={isActive ? 0 : -1}
 						onKeyDown={(e) => {
 							if (e.key === "Enter" || e.key === " ") {
 								activateTab(tab.id);
@@ -36,7 +40,6 @@ export function TabBar() {
 						}}
 						onClick={() => activateTab(tab.id)}
 					>
-
 						{tab.type === "diff" ? (
 							<GitCompare
 								className={`w-4 h-4 ${isActive ? "text-accent" : "text-text-muted"}`}

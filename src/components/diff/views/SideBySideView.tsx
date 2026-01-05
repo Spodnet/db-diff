@@ -35,7 +35,7 @@ export function SideBySideView({
 									className="rounded border-border text-accent focus:ring-accent bg-surface"
 								/>
 							</th>
-							<th className="px-2 py-2 w-8 min-w-8 max-w-8 text-left text-xs font-medium text-text-muted uppercase tracking-wider border-b border-border" />
+							<th className="px-2 py-2 w-12 min-w-12 max-w-12 text-left text-xs font-medium text-text-muted uppercase tracking-wider border-b border-border" />
 							{columns.map((col) => (
 								<th
 									key={col}
@@ -60,7 +60,7 @@ export function SideBySideView({
 									key={row.primaryKey}
 									className={`${getStatusBgClass(row.status)} ${
 										isSelected ? "bg-accent/10" : ""
-									} border-b border-border/50 hover:bg-surface-elevated/50 transition-colors cursor-pointer`}
+									} border-b border-border/50 hover:bg-surface-elevated/50 transition-colors cursor-pointer h-[36.5px]`}
 									onClick={() => onToggleSelection(row.primaryKey)}
 								>
 									{/* biome-ignore lint/a11y/useKeyWithClickEvents: stopEvents needed for checkbox */}
@@ -123,7 +123,10 @@ export function SideBySideView({
 				<table className="w-full text-sm table-fixed">
 					<thead className="sticky top-8 bg-surface-elevated z-10">
 						<tr>
-							<th className="h-[36.5px] px-2 py-2 w-8 min-w-8 max-w-8 text-left text-xs font-medium text-text-muted uppercase tracking-wider border-b border-border"></th>
+							<th className="h-[36.5px] px-2 py-2 w-8 min-w-8 max-w-8 border-b border-border" />
+							<th className="px-2 py-2 w-12 min-w-12 max-w-12 text-left text-xs font-medium text-text-muted uppercase tracking-wider border-b border-border">
+								State
+							</th>
 							{columns.map((col) => (
 								<th
 									key={col}
@@ -155,7 +158,7 @@ export function SideBySideView({
 											: isModified
 												? "bg-modified-bg/30"
 												: ""
-									}`}
+									} h-[36.5px]`}
 									onClick={() => onToggleSelection(row.primaryKey)}
 								>
 									<td className="px-2 py-2 text-center" />

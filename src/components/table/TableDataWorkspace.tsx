@@ -1,5 +1,7 @@
-import { Database, Loader2, RefreshCw } from "lucide-react";
+import { ArrowRight, Database, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useDiff } from "../../hooks/useDiff";
+import { useView } from "../../hooks/useView";
 import type { Connection } from "../../lib/types";
 
 interface TableDataResponse {
@@ -20,6 +22,14 @@ export function TableDataWorkspace({
 	const [data, setData] = useState<TableDataResponse | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+
+	const {
+		setSourceConnection,
+		setSourceTable,
+		setTargetConnection,
+		setTargetTable,
+	} = useDiff();
+	const { activateTab } = useView();
 
 	const fetchData = useCallback(async () => {
 		setLoading(true);
@@ -45,6 +55,18 @@ export function TableDataWorkspace({
 		fetchData();
 	}, [fetchData]); // Fetch when props change
 
+	const handleUseAsSource = () => {
+		setSourceConnection(connection.id);
+		setSourceTable(tableName);
+		activateTab("diff");
+	};
+
+	const handleUseAsTarget = () => {
+		setTargetConnection(connection.id);
+		setTargetTable(tableName);
+		activateTab("diff");
+	};
+
 	return (
 		<div className="h-full flex flex-col bg-surface">
 			{/* Header */}
@@ -63,15 +85,33 @@ export function TableDataWorkspace({
 						</p>
 					</div>
 				</div>
-				<button
-					type="button"
-					onClick={fetchData}
-					disabled={loading}
-					className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface transition-colors disabled:opacity-50"
-					title="Refresh Data"
-				>
-					<RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
-				</button>
+				<div className="flex items-center gap-2">
+					<button
+						type="button"
+						onClick={handleUseAsSource}
+						className="px-3 py-1.5 text-xs font-medium text-text-primary bg-surface border border-border rounded-lg hover:bg-surface-elevated hover:border-accent transition-colors flex items-center gap-1.5"
+					>
+						Set Source
+					</button>
+					<button
+						type="button"
+						onClick={handleUseAsTarget}
+						className="px-3 py-1.5 text-xs font-medium text-text-primary bg-surface border border-border rounded-lg hover:bg-surface-elevated hover:border-accent transition-colors flex items-center gap-1.5"
+					>
+						Set Target
+						<ArrowRight className="w-3 h-3" />
+					</button>
+					<div className="w-px h-6 bg-border mx-1" />
+					<button
+						type="button"
+						onClick={fetchData}
+						disabled={loading}
+						className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface transition-colors disabled:opacity-50"
+						title="Refresh Data"
+					>
+						<RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
+					</button>
+				</div>
 			</div>
 
 			{/* Content */}

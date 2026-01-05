@@ -61,3 +61,44 @@ export interface DatabaseSchema {
 	name: string;
 	tables: TableInfo[];
 }
+
+// Diff types
+export type DiffStatus = "added" | "deleted" | "modified" | "unchanged";
+
+export interface CellDiff {
+	column: string;
+	sourceValue: unknown;
+	targetValue: unknown;
+	status: DiffStatus;
+}
+
+export interface RowDiff {
+	primaryKey: string;
+	status: DiffStatus;
+	sourceRow?: Record<string, unknown>;
+	targetRow?: Record<string, unknown>;
+	cellDiffs: CellDiff[];
+}
+
+export interface TableDiffResult {
+	sourceConnection: string;
+	targetConnection: string;
+	tableName: string;
+	primaryKeyColumn: string;
+	columns: string[];
+	rows: RowDiff[];
+	summary: {
+		added: number;
+		deleted: number;
+		modified: number;
+		unchanged: number;
+		total: number;
+	};
+}
+
+export interface DiffSelection {
+	sourceConnectionId: string | null;
+	sourceTableName: string | null;
+	targetConnectionId: string | null;
+	targetTableName: string | null;
+}

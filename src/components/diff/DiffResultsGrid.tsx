@@ -24,6 +24,8 @@ export function DiffResultsGrid({ result }: DiffResultsGridProps) {
 		deselectAllRows,
 		mergedCells,
 		mergeCell,
+		insertAsNewRows,
+		toggleInsertAsNew,
 	} = useDiff();
 
 	const {
@@ -181,6 +183,8 @@ export function DiffResultsGrid({ result }: DiffResultsGridProps) {
 						allSelected={allChangedRowsSelected}
 						mergedCells={mergedCells}
 						onMergeCell={mergeCell}
+						insertAsNewRows={insertAsNewRows}
+						onToggleInsertAsNew={toggleInsertAsNew}
 					/>
 				) : (
 					<InlineView

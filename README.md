@@ -14,8 +14,16 @@
   - Selectively merge changes from a source database to a target database.
   - Supports **INSERT**, **UPDATE**, and **DELETE** operations.
   - Granular control: merge entire rows or individual cell modifications.
+  - **Right-click on modified rows** to "Mark as New Row" - inserts as a new record instead of updating.
 - **Data Explorer**: distinct views to browse and inspect raw table data for any connected database.
 - **Modern Architecture**: Built with **React 19**, **Tailwind CSS v4**, and **Express**.
+
+## 💡 Tips
+
+- **Double-click** a row to select it for merging.
+- **Click** a modified cell to merge just that cell's value.
+- **Right-click** a modified row to access context menu options like "Mark as New Row".
+- Use the **filter toggles** in the stats bar to show/hide rows by status (Added, Deleted, Modified, Unchanged).
 
 ## 🛠️ Technology Stack
 

@@ -28,6 +28,7 @@ export function DiffWorkspace() {
 		mergeSuccess,
 		mergeError,
 		clearMergeState,
+		insertAsNewRows,
 	} = useDiff();
 
 	const [sourceDropdownOpen, setSourceDropdownOpen] = useState(false);
@@ -69,7 +70,11 @@ export function DiffWorkspace() {
 
 	const selectedRowCount =
 		selectedRows.size +
-		[...(mergedCells?.keys() || [])].filter((k) => !selectedRows.has(k)).length;
+		[...(mergedCells?.keys() || [])].filter((k) => !selectedRows.has(k))
+			.length +
+		[...(insertAsNewRows || [])].filter(
+			(k) => !selectedRows.has(k) && !mergedCells?.has(k),
+		).length;
 	const hasSelection = selectedRowCount > 0;
 
 	const handleCompare = async () => {
@@ -251,7 +256,6 @@ export function DiffWorkspace() {
 					sourceConnectionName={diffResult?.sourceConnection}
 					targetConnectionName={diffResult?.targetConnection}
 					tableName={diffResult?.tableName}
-					selectedCount={selectedRows.size}
 					mergeOperations={mergeOperations}
 					isMerging={isMerging}
 					mergeError={mergeError}

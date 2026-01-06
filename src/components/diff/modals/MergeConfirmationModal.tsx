@@ -22,7 +22,6 @@ interface MergeConfirmationModalProps {
 	sourceConnectionName?: string;
 	targetConnectionName?: string;
 	tableName?: string;
-	selectedCount: number;
 	mergeOperations: MergeOperation[];
 	isMerging: boolean;
 	mergeError: string | null;
@@ -36,7 +35,6 @@ export function MergeConfirmationModal({
 	sourceConnectionName,
 	targetConnectionName,
 	tableName,
-	selectedCount,
 	mergeOperations,
 	isMerging,
 	mergeError,
@@ -62,8 +60,9 @@ export function MergeConfirmationModal({
 				<div className="p-6 flex-1 overflow-auto">
 					<div className="mb-6">
 						<p className="text-text-primary mb-2">
-							You are about to apply <strong>{selectedCount}</strong> change
-							{selectedCount !== 1 ? "s" : ""} to{" "}
+							You are about to apply <strong>{mergeOperations.length}</strong>{" "}
+							change
+							{mergeOperations.length !== 1 ? "s" : ""} to{" "}
 							<span className="font-mono text-accent">
 								{targetConnection?.name}
 							</span>

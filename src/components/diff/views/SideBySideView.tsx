@@ -15,12 +15,21 @@ export function SideBySideView({
 	allSelected,
 	mergedCells,
 	onMergeCell,
+	insertAsNewRows,
+	onToggleInsertAsNew,
 }: ViewProps) {
 	const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
 	const resizingRef = useRef<{
 		column: string;
 		startX: number;
 		startWidth: number;
+	} | null>(null);
+
+	// Context menu state
+	const [contextMenu, setContextMenu] = useState<{
+		x: number;
+		y: number;
+		primaryKey: string;
 	} | null>(null);
 
 	// Initialize column widths
@@ -98,6 +107,13 @@ export function SideBySideView({
 		setColumnWidths((prev) => ({ ...prev, [column]: newWidth }));
 	};
 
+	const handleContextMenu = (e: React.MouseEvent, primaryKey: string) => {
+		e.preventDefault();
+		setContextMenu({ x: e.clientX, y: e.clientY, primaryKey });
+	};
+
+	const closeContextMenu = () => setContextMenu(null);
+
 	return (
 		<div className="flex h-full overflow-hidden">
 			{/* Source Side */}
@@ -153,26 +169,39 @@ export function SideBySideView({
 							{rows.map((row) => {
 								const isAdded = row.status === "added";
 								const isSelected = selectedRows.has(row.primaryKey);
+								const isInsertAsNew = insertAsNewRows?.has(row.primaryKey);
+								const isModified = row.status === "modified";
 
 								return (
 									<tr
 										key={row.primaryKey}
 										className={`${getStatusBgClass(row.status)} ${
 											isSelected ? "bg-accent/10" : ""
+										} ${
+											isInsertAsNew ? "bg-blue-500/10" : ""
 										} border-b border-border/50 hover:bg-surface-elevated/50 transition-colors cursor-pointer h-[36.5px]`}
 										onDoubleClick={() => onToggleSelection(row.primaryKey)}
+										onContextMenu={
+											isModified
+												? (e) => handleContextMenu(e, row.primaryKey)
+												: undefined
+										}
 									>
 										{/* biome-ignore lint/a11y/useKeyWithClickEvents: stopEvents needed for checkbox */}
 										<td
 											className="px-2 py-2 text-center"
 											onClick={(e) => e.stopPropagation()}
 										>
-											<input
-												type="checkbox"
-												checked={isSelected}
-												onChange={() => onToggleSelection(row.primaryKey)}
-												className="rounded border-border text-accent focus:ring-accent bg-surface cursor-pointer"
-											/>
+											{isInsertAsNew ? (
+												<span title="Will insert as new row">📥</span>
+											) : (
+												<input
+													type="checkbox"
+													checked={isSelected}
+													onChange={() => onToggleSelection(row.primaryKey)}
+													className="rounded border-border text-accent focus:ring-accent bg-surface cursor-pointer"
+												/>
+											)}
 										</td>
 										{columns.map((col) => {
 											const cellDiff = row.cellDiffs.find(
@@ -224,7 +253,15 @@ export function SideBySideView({
 														}}
 													>
 														{isMerged && <span className="text-accent">✓</span>}
-														{isAdded ? "—" : getCellValue(row, col, "source")}
+														{isAdded ? (
+															"—"
+														) : isInsertAsNew && col === primaryKeyColumn ? (
+															<span className="text-blue-400 text-[10px] font-bold tracking-wide">
+																NEW
+															</span>
+														) : (
+															getCellValue(row, col, "source")
+														)}
 													</div>
 												</td>
 											);
@@ -342,6 +379,40 @@ export function SideBySideView({
 					</table>
 				</div>
 			</div>
+
+			{/* Context Menu */}
+			{contextMenu && (
+				<>
+					{/* biome-ignore lint/a11y/useKeyWithClickEvents: overlay click close */}
+					{/* biome-ignore lint/a11y/noStaticElementInteractions: backdrop */}
+					<div className="fixed inset-0 z-50" onClick={closeContextMenu} />
+					<div
+						className="fixed z-50 bg-surface-elevated border border-border rounded-lg shadow-xl py-1 min-w-[160px]"
+						style={{ left: contextMenu.x, top: contextMenu.y }}
+					>
+						<button
+							type="button"
+							className="w-full px-3 py-2 text-left text-sm hover:bg-surface flex items-center gap-2"
+							onClick={() => {
+								onToggleInsertAsNew?.(contextMenu.primaryKey);
+								closeContextMenu();
+							}}
+						>
+							{insertAsNewRows?.has(contextMenu.primaryKey) ? (
+								<>
+									<span>↩️</span>
+									<span>Unmark as New Row</span>
+								</>
+							) : (
+								<>
+									<span>📥</span>
+									<span>Mark as New Row</span>
+								</>
+							)}
+						</button>
+					</div>
+				</>
+			)}
 		</div>
 	);
 }

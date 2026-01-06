@@ -45,6 +45,9 @@ interface DiffContextType {
 	executeMerge: (targetConnection: Connection) => Promise<void>;
 	clearMergeState: () => void;
 	mergeCell: (primaryKey: string, column: string) => void;
+	// Insert as new
+	insertAsNewRows: Set<string>;
+	toggleInsertAsNew: (primaryKey: string) => void;
 }
 
 const DiffContext = createContext<DiffContextType | null>(null);
@@ -68,6 +71,9 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 	const [mergedCells, setMergedCells] = useState<Map<string, Set<string>>>(
 		new Map(),
 	);
+	const [insertAsNewRows, setInsertAsNewRows] = useState<Set<string>>(
+		new Set(),
+	);
 
 	const setSourceConnection = (connectionId: string | null) => {
 		setSelection((prev) => ({
@@ -85,6 +91,7 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 		setDiffResult(null);
 		setSelectedRows(new Set());
 		setMergedCells(new Map());
+		setInsertAsNewRows(new Set());
 	};
 
 	const setTargetConnection = (connectionId: string | null) => {
@@ -103,6 +110,7 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 		setDiffResult(null);
 		setSelectedRows(new Set());
 		setMergedCells(new Map());
+		setInsertAsNewRows(new Set());
 	};
 
 	const runComparison = async (
@@ -198,6 +206,18 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 		});
 	};
 
+	const toggleInsertAsNew = (primaryKey: string) => {
+		setInsertAsNewRows((prev) => {
+			const next = new Set(prev);
+			if (next.has(primaryKey)) {
+				next.delete(primaryKey);
+			} else {
+				next.add(primaryKey);
+			}
+			return next;
+		});
+	};
+
 	// Generate merge operations for selected rows
 	const mergeOperations: MergeOperation[] = (() => {
 		if (!diffResult) return [];
@@ -209,8 +229,10 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 			const isRowSelected = selectedRows.has(row.primaryKey);
 			const cellMerges = mergedCells.get(row.primaryKey);
 			const hasCellMerges = cellMerges && cellMerges.size > 0;
+			const isInsertAsNew = insertAsNewRows.has(row.primaryKey);
 
-			if (!isRowSelected && !hasCellMerges) continue;
+			// Skip if nothing is selected for this row
+			if (!isRowSelected && !hasCellMerges && !isInsertAsNew) continue;
 			if (row.status === "unchanged") continue;
 
 			if (row.status === "deleted" && isRowSelected) {
@@ -231,26 +253,42 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 					sql: `DELETE FROM ${tableName} WHERE ${primaryKeyColumn} = ${formatValue(row.primaryKey, diffResult.targetConnectionType)};`,
 				});
 			} else if (row.status === "modified") {
-				// Row exists in both but differs - UPDATE target to match source
-				// If row selected, update ALL modified columns
-				// If not selected but has cell merges, update ONLY specified columns
-				const setClauses = row.cellDiffs
-					.filter((c) => {
-						if (c.status !== "modified") return false;
-						if (isRowSelected) return true;
-						return cellMerges?.has(c.column);
-					})
-					.map(
-						(c) =>
-							`${c.column} = ${formatValue(c.sourceValue, diffResult.targetConnectionType)}`,
+				// Check if this row should be inserted as a new row
+				if (isInsertAsNew) {
+					// Insert source data as NEW row (without PK, let auto-increment assign)
+					const nonPkColumns = columns.filter(
+						(col) => col !== primaryKeyColumn,
 					);
-
-				if (setClauses.length > 0) {
+					const values = nonPkColumns.map((col) =>
+						formatValue(row.sourceRow?.[col], diffResult.targetConnectionType),
+					);
 					ops.push({
-						type: "update",
+						type: "insert",
 						primaryKey: row.primaryKey,
-						sql: `UPDATE ${tableName} SET ${setClauses.join(", ")} WHERE ${primaryKeyColumn} = ${formatValue(row.primaryKey, diffResult.targetConnectionType)};`,
+						sql: `INSERT INTO ${tableName} (${nonPkColumns.join(", ")}) VALUES (${values.join(", ")});`,
 					});
+				} else if (isRowSelected || hasCellMerges) {
+					// Row exists in both but differs - UPDATE target to match source
+					// If row selected, update ALL modified columns
+					// If not selected but has cell merges, update ONLY specified columns
+					const setClauses = row.cellDiffs
+						.filter((c) => {
+							if (c.status !== "modified") return false;
+							if (isRowSelected) return true;
+							return cellMerges?.has(c.column);
+						})
+						.map(
+							(c) =>
+								`${c.column} = ${formatValue(c.sourceValue, diffResult.targetConnectionType)}`,
+						);
+
+					if (setClauses.length > 0) {
+						ops.push({
+							type: "update",
+							primaryKey: row.primaryKey,
+							sql: `UPDATE ${tableName} SET ${setClauses.join(", ")} WHERE ${primaryKeyColumn} = ${formatValue(row.primaryKey, diffResult.targetConnectionType)};`,
+						});
+					}
 				}
 			}
 		}
@@ -324,6 +362,8 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 				executeMerge,
 				clearMergeState,
 				mergeCell,
+				insertAsNewRows,
+				toggleInsertAsNew,
 			}}
 		>
 			{children}
@@ -344,6 +384,12 @@ function formatValue(value: unknown, type: ConnectionType): string {
 	if (value === null || value === undefined) return "NULL";
 	if (typeof value === "number") return String(value);
 	if (typeof value === "boolean") return value ? "1" : "0";
+
+	// Handle objects (e.g., JSON columns)
+	if (typeof value === "object") {
+		const jsonStr = JSON.stringify(value);
+		return `'${jsonStr.replace(/'/g, "''")}'`;
+	}
 
 	if (typeof value === "string") {
 		// Handle Dates for MySQL

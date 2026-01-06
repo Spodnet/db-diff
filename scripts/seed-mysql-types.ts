@@ -26,11 +26,6 @@ CREATE TABLE IF NOT EXISTS \`${TABLE_NAME}\` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 `;
 
-// Helper to format date for MySQL
-const formatDate = (d: Date) => d.toISOString().slice(0, 10);
-const formatDateTime = (d: Date) =>
-	d.toISOString().slice(0, 19).replace("T", " ");
-
 async function seed() {
 	console.log("🌱 Starting MySQL seeding...");
 

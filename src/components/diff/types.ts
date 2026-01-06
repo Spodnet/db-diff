@@ -20,4 +20,7 @@ export interface ViewProps {
 	allSelected: boolean;
 	mergedCells?: Map<string, Set<string>>;
 	onMergeCell?: (primaryKey: string, column: string) => void;
+	// Insert as new
+	insertAsNewRows?: Set<string>;
+	onToggleInsertAsNew?: (primaryKey: string) => void;
 }

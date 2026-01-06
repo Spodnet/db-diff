@@ -132,7 +132,9 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 			const targetData = await targetRes.json();
 
 			if (!sourceData.success || !targetData.success) {
-				throw new Error("Failed to fetch table data");
+				const errorMsg =
+					sourceData.error || targetData.error || "Failed to fetch table data";
+				throw new Error(errorMsg);
 			}
 
 			const result = computeDiff(

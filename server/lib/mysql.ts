@@ -137,7 +137,7 @@ export async function getMySQLTableData(
 	);
 	const total = countResult[0].count;
 
-	const [rows] = await connection.execute<mysql.RowDataPacket[]>(
+	const [rows] = await connection.query<mysql.RowDataPacket[]>(
 		`SELECT * FROM \`${tableName}\` LIMIT ? OFFSET ?`,
 		[limit, offset],
 	);

@@ -6,8 +6,6 @@ export function InlineView({
 	primaryKeyColumn,
 	getCellValue,
 	getStatusBgClass,
-	getStatusTextClass,
-	getStatusIcon,
 	selectedRows,
 	onToggleSelection,
 	onSelectAll,
@@ -24,9 +22,6 @@ export function InlineView({
 							onChange={onSelectAll}
 							className="rounded border-border text-accent focus:ring-accent bg-surface"
 						/>
-					</th>
-					<th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider border-b border-border w-12">
-						Status
 					</th>
 					{columns.map((col) => (
 						<th
@@ -63,11 +58,6 @@ export function InlineView({
 									onChange={() => onToggleSelection(row.primaryKey)}
 									className="rounded border-border text-accent focus:ring-accent bg-surface cursor-pointer"
 								/>
-							</td>
-							<td className={`px-3 py-2 ${getStatusTextClass(row.status)}`}>
-								<div className="flex items-center justify-center">
-									{getStatusIcon(row.status)}
-								</div>
 							</td>
 							{row.cellDiffs.map((cell) => (
 								<td

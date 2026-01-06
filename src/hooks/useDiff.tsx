@@ -1,6 +1,7 @@
 import { createContext, useContext, useState } from "react";
 import type {
 	Connection,
+	ConnectionType,
 	DiffSelection,
 	RowDiff,
 	TableDiffResult,
@@ -140,6 +141,7 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 			const result = computeDiff(
 				sourceConnection.name,
 				targetConnection.name,
+				targetConnection.type,
 				sourceTable.name,
 				pkColumn,
 				sourceTable.columns.map((c) => c.name),
@@ -213,7 +215,9 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 
 			if (row.status === "deleted" && isRowSelected) {
 				// Row exists in source but not in target - INSERT into target
-				const values = columns.map((col) => formatValue(row.sourceRow?.[col]));
+				const values = columns.map((col) =>
+					formatValue(row.sourceRow?.[col], diffResult.targetConnectionType),
+				);
 				ops.push({
 					type: "insert",
 					primaryKey: row.primaryKey,
@@ -224,7 +228,7 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 				ops.push({
 					type: "delete",
 					primaryKey: row.primaryKey,
-					sql: `DELETE FROM ${tableName} WHERE ${primaryKeyColumn} = ${formatValue(row.primaryKey)};`,
+					sql: `DELETE FROM ${tableName} WHERE ${primaryKeyColumn} = ${formatValue(row.primaryKey, diffResult.targetConnectionType)};`,
 				});
 			} else if (row.status === "modified") {
 				// Row exists in both but differs - UPDATE target to match source
@@ -236,13 +240,16 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 						if (isRowSelected) return true;
 						return cellMerges?.has(c.column);
 					})
-					.map((c) => `${c.column} = ${formatValue(c.sourceValue)}`);
+					.map(
+						(c) =>
+							`${c.column} = ${formatValue(c.sourceValue, diffResult.targetConnectionType)}`,
+					);
 
 				if (setClauses.length > 0) {
 					ops.push({
 						type: "update",
 						primaryKey: row.primaryKey,
-						sql: `UPDATE ${tableName} SET ${setClauses.join(", ")} WHERE ${primaryKeyColumn} = ${formatValue(row.primaryKey)};`,
+						sql: `UPDATE ${tableName} SET ${setClauses.join(", ")} WHERE ${primaryKeyColumn} = ${formatValue(row.primaryKey, diffResult.targetConnectionType)};`,
 					});
 				}
 			}
@@ -333,11 +340,31 @@ export function useDiff() {
 }
 
 // Format value for SQL
-function formatValue(value: unknown): string {
+function formatValue(value: unknown, type: ConnectionType): string {
 	if (value === null || value === undefined) return "NULL";
 	if (typeof value === "number") return String(value);
 	if (typeof value === "boolean") return value ? "1" : "0";
-	// Escape single quotes for strings
+
+	if (typeof value === "string") {
+		// Handle Dates for MySQL
+		if (
+			type === "mysql" &&
+			/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)
+		) {
+			try {
+				const date = new Date(value);
+				if (!Number.isNaN(date.getTime())) {
+					// Format as YYYY-MM-DD HH:MM:SS
+					return `'${date.toISOString().slice(0, 19).replace("T", " ")}'`;
+				}
+			} catch (_e) {
+				// ignore invalid dates
+			}
+		}
+		// Escape single quotes for strings
+		return `'${String(value).replace(/'/g, "''")}'`;
+	}
+
 	return `'${String(value).replace(/'/g, "''")}'`;
 }
 
@@ -345,6 +372,7 @@ function formatValue(value: unknown): string {
 function computeDiff(
 	sourceConnectionName: string,
 	targetConnectionName: string,
+	targetConnectionType: ConnectionType,
 	tableName: string,
 	pkColumn: string,
 	columns: string[],
@@ -441,6 +469,7 @@ function computeDiff(
 	return {
 		sourceConnection: sourceConnectionName,
 		targetConnection: targetConnectionName,
+		targetConnectionType,
 		tableName,
 		primaryKeyColumn: pkColumn,
 		columns,

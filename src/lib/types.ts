@@ -84,6 +84,7 @@ export interface RowDiff {
 export interface TableDiffResult {
 	sourceConnection: string;
 	targetConnection: string;
+	targetConnectionType: ConnectionType;
 	tableName: string;
 	primaryKeyColumn: string;
 	columns: string[];

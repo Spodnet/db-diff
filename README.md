@@ -56,7 +56,23 @@ npm run dev
 ```
 
 - **Frontend**: Access the UI at `http://localhost:5173`
-- **Backend API**: Server runs on `http://localhost:3001`
+- **Backend API**: Server runs on `http://localhost:3001` (or your configured PORT)
+
+### Configuration
+
+To avoid port conflicts or customize the server port, you can use a `.env` file.
+
+1.  Copy the example file:
+    ```bash
+    cp .env.example .env
+    ```
+2.  Edit `.env` and set your desired `PORT` (default is 3001).
+    ```env
+    PORT=3005
+    UI_PORT=5174
+    ```
+    - `PORT`: The port for the backend API server.
+    - `UI_PORT`: The port for the frontend application (default 5173).
 
 ### Development Commands
 

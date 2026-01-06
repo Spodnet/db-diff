@@ -1,6 +1,6 @@
 import { Columns, Minus, Plus, RefreshCw, Rows } from "lucide-react";
 
-import type { TableDiffResult } from "../../lib/types";
+import type { DiffStatus, TableDiffResult } from "../../lib/types";
 
 interface DiffStatsProps {
 	summary: TableDiffResult["summary"];
@@ -9,6 +9,8 @@ interface DiffStatsProps {
 	tableName: string;
 	sourceConnection: string;
 	targetConnection: string;
+	visibleStatuses: Set<DiffStatus>;
+	onToggleStatus: (status: DiffStatus) => void;
 }
 
 export function DiffStats({
@@ -18,7 +20,18 @@ export function DiffStats({
 	tableName,
 	sourceConnection,
 	targetConnection,
+	visibleStatuses,
+	onToggleStatus,
 }: DiffStatsProps) {
+	const getFilterStyle = (status: DiffStatus, colorClass: string) => {
+		const isVisible = visibleStatuses.has(status);
+		return `flex items-center gap-1 px-2 py-1 rounded cursor-pointer transition-all border ${
+			isVisible
+				? `bg-surface border-${colorClass}/20 ${colorClass}`
+				: "text-text-muted border-transparent opacity-50 hover:opacity-100"
+		}`;
+	};
+
 	return (
 		<div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-elevated">
 			<div className="flex items-center gap-3">
@@ -29,7 +42,7 @@ export function DiffStats({
 			</div>
 			<div className="flex items-center gap-4">
 				{/* View Mode Toggle */}
-				<div className="flex items-center gap-1 bg-surface rounded-lg p-0.5">
+				<div className="flex items-center gap-1 bg-surface rounded-lg p-0.5 border border-border">
 					<button
 						type="button"
 						onClick={() => onViewModeChange("side-by-side")}
@@ -38,9 +51,9 @@ export function DiffStats({
 								? "bg-accent text-white"
 								: "text-text-secondary hover:text-text-primary"
 						}`}
+						title="Side by Side View"
 					>
 						<Columns className="w-3 h-3" />
-						Side by side
 					</button>
 					<button
 						type="button"
@@ -50,26 +63,56 @@ export function DiffStats({
 								? "bg-accent text-white"
 								: "text-text-secondary hover:text-text-primary"
 						}`}
+						title="Inline View"
 					>
 						<Rows className="w-3 h-3" />
-						Inline
 					</button>
 				</div>
-				{/* Stats */}
-				<div className="flex items-center gap-4 text-sm">
-					<span className="flex items-center gap-1 text-added">
+
+				<div className="h-4 w-px bg-border" />
+
+				{/* Stats / Filters */}
+				<div className="flex items-center gap-2 text-sm select-none">
+					<button
+						type="button"
+						onClick={() => onToggleStatus("added")}
+						className={getFilterStyle("added", "text-added")}
+						title="Toggle Added Rows"
+					>
 						<Plus className="w-3 h-3" />
 						{summary.added}
-					</span>
-					<span className="flex items-center gap-1 text-deleted">
+					</button>
+					<button
+						type="button"
+						onClick={() => onToggleStatus("deleted")}
+						className={getFilterStyle("deleted", "text-deleted")}
+						title="Toggle Deleted Rows"
+					>
 						<Minus className="w-3 h-3" />
 						{summary.deleted}
-					</span>
-					<span className="flex items-center gap-1 text-modified">
+					</button>
+					<button
+						type="button"
+						onClick={() => onToggleStatus("modified")}
+						className={getFilterStyle("modified", "text-modified")}
+						title="Toggle Modified Rows"
+					>
 						<RefreshCw className="w-3 h-3" />
 						{summary.modified}
-					</span>
-					<span className="text-text-muted">{summary.unchanged} unchanged</span>
+					</button>
+					<button
+						type="button"
+						onClick={() => onToggleStatus("unchanged")}
+						className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer transition-all border ${
+							visibleStatuses.has("unchanged")
+								? "bg-surface border-border text-text-secondary"
+								: "text-text-muted border-transparent opacity-50 hover:opacity-100"
+						}`}
+						title="Toggle Unchanged Rows"
+					>
+						<span className="text-xs">●</span>
+						{summary.unchanged}
+					</button>
 				</div>
 			</div>
 		</div>

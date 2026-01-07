@@ -33,6 +33,7 @@ interface ViewContextType {
     ) => void;
     closeTab: (tabId: string) => void;
     activateTab: (tabId: string) => void;
+    updateTab: (tabId: string, updates: Partial<Tab>) => void;
 }
 
 const ViewContext = createContext<ViewContextType | null>(null);
@@ -108,8 +109,24 @@ export function ViewProvider({ children }: { children: React.ReactNode }) {
         setActiveTabId(tabId);
     };
 
+    const updateTab = (tabId: string, updates: Partial<Tab>) => {
+        setTabs((prev) =>
+            prev.map((t) => (t.id === tabId ? { ...t, ...updates } : t)),
+        );
+        // If ID changed and it was active, update activeTabId?
+        if (updates.id && activeTabId === tabId) {
+            setActiveTabId(updates.id);
+        }
+    };
+
     const closeTab = (tabId: string) => {
-        if (tabId === "diff") return; // Cannot close diff tab
+        const tab = tabs.find((t) => t.id === tabId);
+        if (!tab) return;
+
+        if (tab.type === "diff") {
+            const diffCount = tabs.filter((t) => t.type === "diff").length;
+            if (diffCount <= 1) return; // Must keep at least one diff tab
+        }
 
         setTabs((prev) => {
             const newTabs = prev.filter((t) => t.id !== tabId);
@@ -134,6 +151,7 @@ export function ViewProvider({ children }: { children: React.ReactNode }) {
                 openDiffTab,
                 closeTab,
                 activateTab,
+                updateTab,
             }}
         >
             {children}

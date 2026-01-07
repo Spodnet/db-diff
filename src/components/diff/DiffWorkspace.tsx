@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useConnections } from "../../hooks/useConnections";
 import { DiffProvider, useDiff } from "../../hooks/useDiff";
 import { type Tab, useView } from "../../hooks/useView";
-import type { Connection } from "../../lib/types";
+import type { Connection, TableInfo } from "../../lib/types";
 import { ColumnIgnorePanel } from "./ColumnIgnorePanel";
 import { ConnectionSelector } from "./ConnectionSelector";
 import { DiffResultsGrid } from "./DiffResultsGrid";
@@ -14,7 +14,7 @@ interface DiffWorkspaceProps {
 }
 
 function DiffView({ initialData }: DiffWorkspaceProps) {
-    const { openDiffTab } = useView();
+    const { openDiffTab, activeTabId, updateTab } = useView();
     const { connections, connectionStatuses, connectTo, connectionTables } =
         useConnections();
     const {
@@ -134,7 +134,7 @@ function DiffView({ initialData }: DiffWorkspaceProps) {
     const handleCompare = useCallback(async () => {
         if (!canCompare || !sourceConnection || !targetConnection) return;
 
-        // Auto-match tables if multiple sources
+        const pairs: { src: TableInfo; tgt: TableInfo }[] = [];
         if (
             selectedSourceTables.length === 1 &&
             selectedTargetTables.length === 1
@@ -147,12 +147,7 @@ function DiffView({ initialData }: DiffWorkspaceProps) {
                 (t) => t.name === selectedTargetTables[0],
             );
             if (srcTable && tgtTable) {
-                openDiffTab(
-                    sourceConnection,
-                    targetConnection,
-                    srcTable,
-                    tgtTable,
-                );
+                pairs.push({ src: srcTable, tgt: tgtTable });
             }
         } else {
             // Batch by name
@@ -166,18 +161,39 @@ function DiffView({ initialData }: DiffWorkspaceProps) {
                         (t) => t.name === srcName,
                     );
                     if (srcTable && tgtTable) {
-                        openDiffTab(
-                            sourceConnection,
-                            targetConnection,
-                            srcTable,
-                            tgtTable,
-                        );
+                        pairs.push({ src: srcTable, tgt: tgtTable });
                     }
                 }
-                // If no match found by name, skip or maybe warn?
-                // For now silent skip for unmatched
             }
         }
+
+        if (pairs.length === 0) return;
+
+        const pairsToOpen = [...pairs];
+
+        // If in launcher mode (no initialData), reuse current tab for first pair
+        if (!initialData && pairsToOpen.length > 0) {
+            const first = pairsToOpen.shift();
+            if (first) {
+                const newId = `diff-${sourceConnection.id}-${first.src.name}-${targetConnection.id}-${first.tgt.name}`;
+                updateTab(activeTabId, {
+                    id: newId,
+                    label: first.src.name,
+                    type: "diff",
+                    data: {
+                        sourceConnection,
+                        targetConnection,
+                        sourceTable: first.src,
+                        targetTable: first.tgt,
+                    },
+                });
+            }
+        }
+
+        // Open remaining pairs
+        pairsToOpen.forEach((pair) => {
+            openDiffTab(sourceConnection, targetConnection, pair.src, pair.tgt);
+        });
     }, [
         canCompare,
         sourceConnection,
@@ -187,6 +203,9 @@ function DiffView({ initialData }: DiffWorkspaceProps) {
         sourceTables,
         targetTables,
         openDiffTab,
+        activeTabId,
+        updateTab,
+        initialData,
     ]);
 
     // Close modal and refresh after successful merge

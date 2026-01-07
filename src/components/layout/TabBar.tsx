@@ -3,6 +3,7 @@ import { useView } from "../../hooks/useView";
 
 export function TabBar() {
     const { tabs, activeTabId, activateTab, closeTab } = useView();
+    const diffTabCount = tabs.filter((t) => t.type === "diff").length;
 
     return (
         <div
@@ -56,7 +57,7 @@ export function TabBar() {
                             />
                         )}
                         <span className="truncate flex-1">{tab.label}</span>
-                        {tab.type !== "diff" && (
+                        {(tab.type !== "diff" || diffTabCount > 1) && (
                             <button
                                 type="button"
                                 onClick={(e) => {

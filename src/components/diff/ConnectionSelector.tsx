@@ -15,9 +15,12 @@ interface ConnectionSelectorProps {
     onConnectionClick: (connection: Connection) => void;
     tables: TableInfo[];
     selectedTableNames: string[];
+
     onTableSelect: (tableNames: string[]) => void;
-    isOpen: boolean;
-    onToggle: () => void;
+    isConnectionOpen: boolean;
+    onToggleConnection: () => void;
+    isTableOpen: boolean;
+    onToggleTable: () => void;
     isLoading?: boolean;
 }
 
@@ -30,8 +33,10 @@ export function ConnectionSelector({
     tables,
     selectedTableNames,
     onTableSelect,
-    isOpen,
-    onToggle,
+    isConnectionOpen,
+    onToggleConnection,
+    isTableOpen,
+    onToggleTable,
     isLoading,
 }: ConnectionSelectorProps) {
     return (
@@ -44,7 +49,7 @@ export function ConnectionSelector({
                 <div className="relative">
                     <button
                         type="button"
-                        onClick={onToggle}
+                        onClick={onToggleConnection}
                         className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-surface border border-border rounded-lg text-sm hover:border-accent transition-colors"
                     >
                         <span
@@ -58,7 +63,7 @@ export function ConnectionSelector({
                         </span>
                         <ChevronDown className="w-4 h-4 text-text-muted" />
                     </button>
-                    {isOpen && (
+                    {isConnectionOpen && (
                         <div className="absolute z-10 top-full mt-1 w-full bg-surface-elevated border border-border rounded-lg shadow-xl py-1">
                             {connections.length === 0 ? (
                                 <p className="px-4 py-2 text-sm text-text-muted">
@@ -103,7 +108,7 @@ export function ConnectionSelector({
                     <div className="relative">
                         <button
                             type="button"
-                            onClick={onToggle}
+                            onClick={onToggleTable}
                             className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-surface border border-border rounded-lg text-sm hover:border-accent transition-colors"
                         >
                             <span
@@ -121,8 +126,7 @@ export function ConnectionSelector({
                             </span>
                             <ChevronDown className="w-4 h-4 text-text-muted" />
                         </button>
-
-                        {isOpen && (
+                        {isTableOpen && (
                             <div className="absolute z-10 top-full mt-1 w-full bg-surface-elevated border border-border rounded-lg shadow-xl py-1 max-h-[300px] flex flex-col">
                                 {isLoading ? (
                                     <div className="px-4 py-8 flex flex-col items-center justify-center text-text-muted gap-2">

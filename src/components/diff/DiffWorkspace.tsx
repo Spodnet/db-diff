@@ -47,8 +47,10 @@ function DiffView({ initialData }: DiffWorkspaceProps) {
         toggleIgnoredColumn,
     } = useDiff();
 
-    const [sourceDropdownOpen, setSourceDropdownOpen] = useState(false);
-    const [targetDropdownOpen, setTargetDropdownOpen] = useState(false);
+    const [sourceConnOpen, setSourceConnOpen] = useState(false);
+    const [sourceTableOpen, setSourceTableOpen] = useState(false);
+    const [targetConnOpen, setTargetConnOpen] = useState(false);
+    const [targetTableOpen, setTargetTableOpen] = useState(false);
     const [showMergeModal, setShowMergeModal] = useState(false);
     const [initialized, setInitialized] = useState(false);
 
@@ -152,7 +154,25 @@ function DiffView({ initialData }: DiffWorkspaceProps) {
                 (t) => t.name === selectedTargetTables[0],
             );
             if (srcTable && tgtTable) {
-                pairs.push({ src: srcTable, tgt: tgtTable });
+                const pair = { src: srcTable, tgt: tgtTable };
+
+                // If it matches current view (initialData), run directly
+                if (
+                    initialData &&
+                    initialData.sourceTable?.name === srcTable.name &&
+                    initialData.targetTable?.name === tgtTable.name &&
+                    sourceConnection.id === initialData.sourceConnection?.id &&
+                    targetConnection.id === initialData.targetConnection?.id
+                ) {
+                    runComparison(
+                        sourceConnection,
+                        targetConnection,
+                        srcTable,
+                        tgtTable,
+                    );
+                } else {
+                    pairs.push(pair);
+                }
             }
         } else {
             // Batch by name
@@ -211,6 +231,7 @@ function DiffView({ initialData }: DiffWorkspaceProps) {
         activeTabId,
         updateTab,
         initialData,
+        runComparison,
     ]);
 
     // Close modal and refresh after successful merge
@@ -278,10 +299,12 @@ function DiffView({ initialData }: DiffWorkspaceProps) {
         await connectTo(connection);
         if (side === "source") {
             setSelectedSourceConnId(connection.id);
-            setSourceDropdownOpen(false);
+            setSourceConnOpen(false);
+            setSourceTableOpen(true); // Open table dropdown after connection
         } else {
             setSelectedTargetConnId(connection.id);
-            setTargetDropdownOpen(false);
+            setTargetConnOpen(false);
+            setTargetTableOpen(true);
         }
     };
 
@@ -314,7 +337,7 @@ function DiffView({ initialData }: DiffWorkspaceProps) {
                         const status = connectionStatuses.get(conn.id);
                         if (status?.status === "connected") {
                             setSelectedSourceConnId(conn.id);
-                            setSourceDropdownOpen(false);
+                            setSourceConnOpen(false);
                         } else {
                             handleConnectAndSelect(conn, "source");
                         }
@@ -333,8 +356,16 @@ function DiffView({ initialData }: DiffWorkspaceProps) {
                             }
                         }
                     }}
-                    isOpen={sourceDropdownOpen}
-                    onToggle={() => setSourceDropdownOpen(!sourceDropdownOpen)}
+                    isConnectionOpen={sourceConnOpen}
+                    onToggleConnection={() => {
+                        setSourceConnOpen(!sourceConnOpen);
+                        if (!sourceConnOpen) setSourceTableOpen(false);
+                    }}
+                    isTableOpen={sourceTableOpen}
+                    onToggleTable={() => {
+                        setSourceTableOpen(!sourceTableOpen);
+                        if (!sourceTableOpen) setSourceConnOpen(false);
+                    }}
                     isLoading={
                         sourceConnection
                             ? tableLoadingStatuses.get(sourceConnection.id)
@@ -359,7 +390,7 @@ function DiffView({ initialData }: DiffWorkspaceProps) {
                         const status = connectionStatuses.get(conn.id);
                         if (status?.status === "connected") {
                             setSelectedTargetConnId(conn.id);
-                            setTargetDropdownOpen(false);
+                            setTargetConnOpen(false);
                         } else {
                             handleConnectAndSelect(conn, "target");
                         }
@@ -367,8 +398,16 @@ function DiffView({ initialData }: DiffWorkspaceProps) {
                     tables={targetTables}
                     selectedTableNames={selectedTargetTables}
                     onTableSelect={setSelectedTargetTables}
-                    isOpen={targetDropdownOpen}
-                    onToggle={() => setTargetDropdownOpen(!targetDropdownOpen)}
+                    isConnectionOpen={targetConnOpen}
+                    onToggleConnection={() => {
+                        setTargetConnOpen(!targetConnOpen);
+                        if (!targetConnOpen) setTargetTableOpen(false);
+                    }}
+                    isTableOpen={targetTableOpen}
+                    onToggleTable={() => {
+                        setTargetTableOpen(!targetTableOpen);
+                        if (!targetTableOpen) setTargetConnOpen(false);
+                    }}
                     isLoading={
                         targetConnection
                             ? tableLoadingStatuses.get(targetConnection.id)

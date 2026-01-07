@@ -317,12 +317,6 @@ function DiffView({ initialData }: DiffWorkspaceProps) {
         await executeMerge(targetConnection);
     };
 
-    // If we have initial data (it's a result tab) and we have a result, we might want to hide the selectors?
-    // For now, let's keep them visible so user can adjust.
-    // But specific requirement "Auto-create tabs" implies they are separate things.
-    // If this is a separate tab, we probably don't need to change selection there?
-    // Actually, allowing change is fine, it just stays in this tab.
-
     return (
         <div className="h-full flex flex-col p-6">
             {/* Source/Target Selection */}

@@ -26,9 +26,7 @@ export function InlineView({
     const [contextMenu, setContextMenu] = useState<{
         x: number;
         y: number;
-        type: "column"; // Inline view only has column headers? Row context menu? InlineView didn't have row context menu in snippet 3621.
-        // Wait, snippet 3621 doesn't show ANY context menu implementation in InlineView.
-        // So I can just add for column.
+        type: "column";
         id: string;
     } | null>(null);
 

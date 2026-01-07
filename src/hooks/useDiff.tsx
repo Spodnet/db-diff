@@ -240,8 +240,6 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
                 ignoredColumns: Array.from(ignored),
             };
         });
-        // We rely on the consumer to trigger a re-run if needed, or we could trigger it here if we had access to runComparison args.
-        // But preventing data disappearance is key.
     };
 
     // Merge actions

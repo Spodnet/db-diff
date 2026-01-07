@@ -1,4 +1,10 @@
-import { CheckSquare, ChevronDown, Database, Square } from "lucide-react";
+import {
+    CheckSquare,
+    ChevronDown,
+    Database,
+    Loader2,
+    Square,
+} from "lucide-react";
 import type { Connection, ConnectionStatus, TableInfo } from "../../lib/types";
 
 interface ConnectionSelectorProps {
@@ -12,6 +18,7 @@ interface ConnectionSelectorProps {
     onTableSelect: (tableNames: string[]) => void;
     isOpen: boolean;
     onToggle: () => void;
+    isLoading?: boolean;
 }
 
 export function ConnectionSelector({
@@ -25,6 +32,7 @@ export function ConnectionSelector({
     onTableSelect,
     isOpen,
     onToggle,
+    isLoading,
 }: ConnectionSelectorProps) {
     return (
         <div className="flex-1">
@@ -116,7 +124,14 @@ export function ConnectionSelector({
 
                         {isOpen && (
                             <div className="absolute z-10 top-full mt-1 w-full bg-surface-elevated border border-border rounded-lg shadow-xl py-1 max-h-[300px] flex flex-col">
-                                {tables.length === 0 ? (
+                                {isLoading ? (
+                                    <div className="px-4 py-8 flex flex-col items-center justify-center text-text-muted gap-2">
+                                        <Loader2 className="w-5 h-5 animate-spin text-accent" />
+                                        <span className="text-sm">
+                                            Fetching tables...
+                                        </span>
+                                    </div>
+                                ) : tables.length === 0 ? (
                                     <p className="px-4 py-2 text-sm text-text-muted">
                                         No tables found
                                     </p>

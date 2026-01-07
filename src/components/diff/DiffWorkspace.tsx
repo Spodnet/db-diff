@@ -15,8 +15,13 @@ interface DiffWorkspaceProps {
 
 function DiffView({ initialData }: DiffWorkspaceProps) {
     const { openDiffTab, activeTabId, updateTab } = useView();
-    const { connections, connectionStatuses, connectTo, connectionTables } =
-        useConnections();
+    const {
+        connections,
+        connectionStatuses,
+        connectTo,
+        connectionTables,
+        tableLoadingStatuses,
+    } = useConnections();
     const {
         selection,
         diffResult,
@@ -330,6 +335,11 @@ function DiffView({ initialData }: DiffWorkspaceProps) {
                     }}
                     isOpen={sourceDropdownOpen}
                     onToggle={() => setSourceDropdownOpen(!sourceDropdownOpen)}
+                    isLoading={
+                        sourceConnection
+                            ? tableLoadingStatuses.get(sourceConnection.id)
+                            : false
+                    }
                 />
 
                 {/* Compare Arrow */}
@@ -359,6 +369,11 @@ function DiffView({ initialData }: DiffWorkspaceProps) {
                     onTableSelect={setSelectedTargetTables}
                     isOpen={targetDropdownOpen}
                     onToggle={() => setTargetDropdownOpen(!targetDropdownOpen)}
+                    isLoading={
+                        targetConnection
+                            ? tableLoadingStatuses.get(targetConnection.id)
+                            : false
+                    }
                 />
 
                 {/* Compare Button */}

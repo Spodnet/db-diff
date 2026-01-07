@@ -12,6 +12,7 @@ interface ConnectionContextType {
     connectTo: (connection: Connection) => Promise<void>;
     disconnect: (connection: Connection) => Promise<void>;
     fetchTables: (connection: Connection) => Promise<void>;
+    tableLoadingStatuses: Map<string, boolean>;
 }
 
 const ConnectionContext = createContext<ConnectionContextType | null>(null);
@@ -102,6 +103,9 @@ export function ConnectionProvider({
     >(new Map());
     const [connectionTables, setConnectionTables] = useState<
         Map<string, TableInfo[]>
+    >(new Map());
+    const [tableLoadingStatuses, setTableLoadingStatuses] = useState<
+        Map<string, boolean>
     >(new Map());
 
     // Load connections from localStorage on mount
@@ -214,6 +218,7 @@ export function ConnectionProvider({
 
     const fetchTables = async (connection: Connection) => {
         const { id, type } = connection;
+        setTableLoadingStatuses((prev) => new Map(prev).set(id, true));
         try {
             const response = await fetch(
                 `/api/database/${id}/tables?type=${type}`,
@@ -233,6 +238,12 @@ export function ConnectionProvider({
             }
         } catch (e) {
             console.error("Failed to fetch tables:", e);
+        } finally {
+            setTableLoadingStatuses((prev) => {
+                const next = new Map(prev);
+                next.delete(id);
+                return next;
+            });
         }
     };
 
@@ -249,6 +260,7 @@ export function ConnectionProvider({
                 connectTo,
                 disconnect,
                 fetchTables,
+                tableLoadingStatuses,
             }}
         >
             {children}

@@ -38,7 +38,7 @@
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18 or higher recommended)
+- [Node.js](https://nodejs.org/) (v24 or higher recommended)
 - `npm` or `yarn`
 
 ### Installation
@@ -63,8 +63,8 @@ Start both the client and server concurrently with a single command:
 npm run dev
 ```
 
-- **Frontend**: Access the UI at `http://localhost:5173`
-- **Backend API**: Server runs on `http://localhost:3001` (or your configured PORT)
+- **Frontend**: Access the UI at `http://localhost:5173` (or your configured PORT see below)
+- **Backend API**: Server runs on `http://localhost:3001` (or your configured PORT see below)
 
 ### Configuration
 

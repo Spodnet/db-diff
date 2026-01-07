@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { useColumnResizing } from "../../../hooks/useColumnResizing";
 import type { ViewProps } from "../types";
 
 export function SideBySideView({
@@ -19,14 +20,8 @@ export function SideBySideView({
     onToggleInsertAsNew,
     onToggleIgnoredColumn,
 }: ViewProps) {
-    const [columnWidths, setColumnWidths] = useState<Record<string, number>>(
-        {},
-    );
-    const resizingRef = useRef<{
-        column: string;
-        startX: number;
-        startWidth: number;
-    } | null>(null);
+    const { columnWidths, setColumnWidths, startResizing, handleAutoResize } =
+        useColumnResizing(); // Uses default "data-col"
 
     // Context menu state
     const [contextMenu, setContextMenu] = useState<{
@@ -43,73 +38,7 @@ export function SideBySideView({
             initialWidths[col] = 150; // Default width
         }
         setColumnWidths(initialWidths);
-    }, [columns]);
-
-    useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => {
-            if (!resizingRef.current) return;
-            const { column, startX, startWidth } = resizingRef.current;
-            const diff = e.pageX - startX;
-            const newWidth = Math.max(50, startWidth + diff); // Min width 50px
-            setColumnWidths((prev) => ({ ...prev, [column]: newWidth }));
-        };
-
-        const handleMouseUp = () => {
-            if (resizingRef.current) {
-                resizingRef.current = null;
-                document.body.style.cursor = "";
-            }
-        };
-
-        document.addEventListener("mousemove", handleMouseMove);
-        document.addEventListener("mouseup", handleMouseUp);
-
-        return () => {
-            document.removeEventListener("mousemove", handleMouseMove);
-            document.removeEventListener("mouseup", handleMouseUp);
-        };
-    }, []);
-
-    const startResizing = (
-        e: React.MouseEvent,
-        column: string,
-        width: number,
-    ) => {
-        e.preventDefault();
-        resizingRef.current = { column, startX: e.pageX, startWidth: width };
-        document.body.style.cursor = "col-resize";
-    };
-
-    const handleAutoResize = (e: React.MouseEvent, column: string) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // Find all cells for this column (in both source and target tables)
-        const cells = document.querySelectorAll(`[data-col="${column}"]`);
-        if (cells.length === 0) return;
-
-        const canvas = document.createElement("canvas");
-        const context = canvas.getContext("2d");
-        if (!context) return;
-
-        // Get font directly from element to be accurate
-        const font = window.getComputedStyle(cells[0]).font;
-        context.font = font || "12px monospace";
-
-        // Measure header width first (approximate with column name)
-        let maxWidth = context.measureText(column).width + 32; // Header needs bit more space for icons
-
-        // Measure all cell contents
-        for (const cell of cells) {
-            const text = cell.textContent || "";
-            const width = context.measureText(text).width;
-            maxWidth = Math.max(maxWidth, width + 24); // Content width + padding (16px) + buffer
-        }
-
-        // Cap between 60px and 600px
-        const newWidth = Math.max(60, Math.min(600, maxWidth));
-        setColumnWidths((prev) => ({ ...prev, [column]: newWidth }));
-    };
+    }, [columns, setColumnWidths]);
 
     const handleContextMenu = (e: React.MouseEvent, primaryKey: string) => {
         e.preventDefault();

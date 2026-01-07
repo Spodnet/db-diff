@@ -1,5 +1,6 @@
 import { Database, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useColumnResizing } from "../../hooks/useColumnResizing";
 import type { Connection } from "../../lib/types";
 import { formatCellValue } from "../../lib/utils";
 
@@ -22,6 +23,9 @@ export function TableDataWorkspace({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const { columnWidths, setColumnWidths, startResizing, handleAutoResize } =
+        useColumnResizing("data-col-id");
+
     const fetchData = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -32,6 +36,14 @@ export function TableDataWorkspace({
             const result = await res.json();
             if (result.success) {
                 setData(result);
+                // Initialize default column widths
+                if (result.rows.length > 0) {
+                    const initials: Record<string, number> = {};
+                    for (const key of Object.keys(result.rows[0])) {
+                        initials[key] = 150; // Default width
+                    }
+                    setColumnWidths(initials);
+                }
             } else {
                 setError(result.error || "Failed to fetch table data");
             }
@@ -42,11 +54,11 @@ export function TableDataWorkspace({
         } finally {
             setLoading(false);
         }
-    }, [connection.id, connection.type, tableName]);
+    }, [connection.id, connection.type, tableName, setColumnWidths]);
 
     useEffect(() => {
         fetchData();
-    }, [fetchData]); // Fetch when props change
+    }, [fetchData]);
 
     return (
         <div className="h-full flex flex-col bg-surface">
@@ -101,16 +113,47 @@ export function TableDataWorkspace({
                 ) : data && data.rows.length > 0 ? (
                     <div className="bg-surface border border-border rounded-lg overflow-hidden">
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left">
+                            <table className="w-full text-sm text-left table-fixed">
                                 <thead className="bg-surface-elevated text-text-muted font-medium border-b border-border">
                                     <tr>
                                         {Object.keys(data.rows[0]).map(
                                             (header) => (
                                                 <th
                                                     key={header}
-                                                    className="px-4 py-3 whitespace-nowrap"
+                                                    className="relative px-4 py-3 whitespace-nowrap group"
+                                                    style={{
+                                                        width: columnWidths[
+                                                            header
+                                                        ],
+                                                        minWidth:
+                                                            columnWidths[
+                                                                header
+                                                            ],
+                                                    }}
                                                 >
-                                                    {header}
+                                                    <span className="truncate block">
+                                                        {header}
+                                                    </span>
+                                                    {/* Resizer */}
+                                                    {/* biome-ignore lint/a11y/noStaticElementInteractions: resizer needs mouse events */}
+                                                    <div
+                                                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-accent/50 group-hover:bg-border transition-colors z-20"
+                                                        onMouseDown={(e) =>
+                                                            startResizing(
+                                                                e,
+                                                                header,
+                                                                columnWidths[
+                                                                    header
+                                                                ] || 150,
+                                                            )
+                                                        }
+                                                        onDoubleClick={(e) =>
+                                                            handleAutoResize(
+                                                                e,
+                                                                header,
+                                                            )
+                                                        }
+                                                    />
                                                 </th>
                                             ),
                                         )}
@@ -124,12 +167,13 @@ export function TableDataWorkspace({
                                             )}
                                             className="hover:bg-surface-elevated/50"
                                         >
-                                            {Object.values(row).map(
-                                                (cell, j) => {
+                                            {Object.entries(row).map(
+                                                ([key, cell], j) => {
                                                     return (
                                                         <td
                                                             key={`${String(cell)}-${j}`}
-                                                            className="px-4 py-3 text-text-primary whitespace-nowrap"
+                                                            className="px-4 py-3 text-text-primary whitespace-nowrap overflow-hidden text-ellipsis"
+                                                            data-col-id={key}
                                                         >
                                                             {cell === null ? (
                                                                 <span className="text-text-muted italic">

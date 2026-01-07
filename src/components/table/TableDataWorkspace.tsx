@@ -1,6 +1,7 @@
 import { Database, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { Connection } from "../../lib/types";
+import { formatCellValue } from "../../lib/utils";
 
 interface TableDataResponse {
     success: boolean;
@@ -46,35 +47,6 @@ export function TableDataWorkspace({
     useEffect(() => {
         fetchData();
     }, [fetchData]); // Fetch when props change
-
-    // Format cell values for display (handle dates, etc.)
-    const formatCellValue = (value: unknown): string => {
-        if (value === null || value === undefined) return "";
-        if (typeof value === "number") return String(value);
-        if (typeof value === "boolean") return value ? "true" : "false";
-
-        // Handle Date objects
-        if (value instanceof Date) {
-            return value.toISOString().slice(0, 19).replace("T", " ");
-        }
-
-        // Handle ISO date strings
-        if (
-            typeof value === "string" &&
-            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)
-        ) {
-            try {
-                const date = new Date(value);
-                if (!Number.isNaN(date.getTime())) {
-                    return date.toISOString().slice(0, 19).replace("T", " ");
-                }
-            } catch (_e) {
-                // Fall through to default string display
-            }
-        }
-
-        return String(value);
-    };
 
     return (
         <div className="h-full flex flex-col bg-surface">

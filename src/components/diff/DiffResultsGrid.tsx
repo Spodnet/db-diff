@@ -2,6 +2,7 @@ import { Minus, Plus, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useDiff } from "../../hooks/useDiff";
 import type { DiffStatus, RowDiff, TableDiffResult } from "../../lib/types";
+import { formatCellValue } from "../../lib/utils";
 import { DiffStats } from "./DiffStats";
 import { InlineView } from "./views/InlineView";
 import { SideBySideView } from "./views/SideBySideView";
@@ -168,27 +169,7 @@ export function DiffResultsGrid({ result, onRecompare }: DiffResultsGridProps) {
         if (value === null) return "NULL";
         if (value === undefined) return "—";
 
-        // Format Date objects for display
-        if (value instanceof Date) {
-            return value.toISOString().slice(0, 19).replace("T", " ");
-        }
-
-        // Format ISO date strings for display
-        if (
-            typeof value === "string" &&
-            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)
-        ) {
-            try {
-                const date = new Date(value);
-                if (!Number.isNaN(date.getTime())) {
-                    return date.toISOString().slice(0, 19).replace("T", " ");
-                }
-            } catch (_e) {
-                // Fall through to default string display
-            }
-        }
-
-        return String(value);
+        return formatCellValue(value);
     };
 
     // Load more: increase limit by 500 and recompare

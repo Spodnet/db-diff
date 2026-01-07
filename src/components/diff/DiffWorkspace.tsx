@@ -1,8 +1,8 @@
 import { GitCompare, GitMerge, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useConnections } from "../../hooks/useConnections";
 import { useDiff } from "../../hooks/useDiff";
-import type { Connection, TableInfo } from "../../lib/types";
+import type { Connection } from "../../lib/types";
 import { ConnectionSelector } from "./ConnectionSelector";
 import { DiffResultsGrid } from "./DiffResultsGrid";
 import { MergeConfirmationModal } from "./modals/MergeConfirmationModal";
@@ -29,29 +29,17 @@ export function DiffWorkspace() {
 		mergeError,
 		clearMergeState,
 		insertAsNewRows,
+		fkCascadeChain,
+		addFkCascade,
+		removeFkCascade,
 	} = useDiff();
 
 	const [sourceDropdownOpen, setSourceDropdownOpen] = useState(false);
 	const [targetDropdownOpen, setTargetDropdownOpen] = useState(false);
 	const [showMergeModal, setShowMergeModal] = useState(false);
 
-	// Get connected connections
-	const _connectedConnections = connections.filter(
-		(c) => connectionStatuses.get(c.id)?.status === "connected",
-	);
-
 	const getConnection = (id: string | null): Connection | undefined =>
 		connections.find((c) => c.id === id);
-
-	const getTable = (
-		connectionId: string | null,
-		tableName: string | null,
-	): TableInfo | undefined => {
-		if (!connectionId || !tableName) return undefined;
-		return connectionTables
-			.get(connectionId)
-			?.find((t) => t.name === tableName);
-	};
 
 	const sourceConnection = getConnection(selection.sourceConnectionId);
 	const targetConnection = getConnection(selection.targetConnectionId);
@@ -77,24 +65,38 @@ export function DiffWorkspace() {
 		).length;
 	const hasSelection = selectedRowCount > 0;
 
-	const handleCompare = async () => {
+	const handleCompare = useCallback(async () => {
 		if (!canCompare) return;
 
-		const srcConn = getConnection(selection.sourceConnectionId);
-		const tgtConn = getConnection(selection.targetConnectionId);
-		const srcTable = getTable(
-			selection.sourceConnectionId,
-			selection.sourceTableName,
+		const srcConn = connections.find(
+			(c) => c.id === selection.sourceConnectionId,
 		);
-		const tgtTable = getTable(
-			selection.targetConnectionId,
-			selection.targetTableName,
+		const tgtConn = connections.find(
+			(c) => c.id === selection.targetConnectionId,
 		);
+		const srcTable = connectionTables
+			.get(selection.sourceConnectionId || "")
+			?.find((t) => t.name === selection.sourceTableName);
+		const tgtTable = connectionTables
+			.get(selection.targetConnectionId || "")
+			?.find((t) => t.name === selection.targetTableName);
 
 		if (srcConn && tgtConn && srcTable && tgtTable) {
 			await runComparison(srcConn, tgtConn, srcTable, tgtTable);
 		}
-	};
+	}, [canCompare, selection, runComparison, connections, connectionTables]);
+
+	// Close modal and refresh after successful merge
+	useEffect(() => {
+		if (mergeSuccess && showMergeModal) {
+			const timer = setTimeout(() => {
+				setShowMergeModal(false);
+				clearMergeState();
+				handleCompare();
+			}, 1500);
+			return () => clearTimeout(timer);
+		}
+	}, [mergeSuccess, showMergeModal, clearMergeState, handleCompare]);
 
 	const handleConnectAndSelect = async (
 		connection: Connection,
@@ -117,14 +119,9 @@ export function DiffWorkspace() {
 	const handleConfirmMerge = async () => {
 		if (!targetConnection) return;
 		await executeMerge(targetConnection);
-		if (!mergeError) {
-			setTimeout(() => {
-				setShowMergeModal(false);
-				clearMergeState();
-				// Re-run comparison to show updated state and clear selection
-				handleCompare();
-			}, 1500);
-		}
+		// Note: mergeSuccess/mergeError state will be set by executeMerge
+		// The modal will stay open to show success/error message
+		// We'll close it after a delay only on success (via effect or callback)
 	};
 
 	return (
@@ -260,6 +257,11 @@ export function DiffWorkspace() {
 					isMerging={isMerging}
 					mergeError={mergeError}
 					mergeSuccess={mergeSuccess}
+					hasInsertAsNew={insertAsNewRows.size > 0}
+					targetTables={targetTables}
+					fkCascadeChain={fkCascadeChain}
+					onAddFkCascade={addFkCascade}
+					onRemoveFkCascade={removeFkCascade}
 				/>
 			)}
 		</div>

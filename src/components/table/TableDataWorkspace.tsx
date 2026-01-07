@@ -67,6 +67,35 @@ export function TableDataWorkspace({
 		activateTab("diff");
 	};
 
+	// Format cell values for display (handle dates, etc.)
+	const formatCellValue = (value: unknown): string => {
+		if (value === null || value === undefined) return "";
+		if (typeof value === "number") return String(value);
+		if (typeof value === "boolean") return value ? "true" : "false";
+
+		// Handle Date objects
+		if (value instanceof Date) {
+			return value.toISOString().slice(0, 19).replace("T", " ");
+		}
+
+		// Handle ISO date strings
+		if (
+			typeof value === "string" &&
+			/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)
+		) {
+			try {
+				const date = new Date(value);
+				if (!Number.isNaN(date.getTime())) {
+					return date.toISOString().slice(0, 19).replace("T", " ");
+				}
+			} catch (_e) {
+				// Fall through to default string display
+			}
+		}
+
+		return String(value);
+	};
+
 	return (
 		<div className="h-full flex flex-col bg-surface">
 			{/* Header */}
@@ -153,7 +182,7 @@ export function TableDataWorkspace({
 																NULL
 															</span>
 														) : (
-															String(cell)
+															formatCellValue(cell)
 														)}
 													</td>
 												);

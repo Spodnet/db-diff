@@ -180,3 +180,146 @@ export async function executeMySQLStatements(
 		};
 	}
 }
+
+// FK Cascade types
+export interface FkCascadeMapping {
+	table: string;
+	column: string;
+	children: FkCascadeMapping[];
+}
+
+export interface InsertAsNewOperation {
+	sql: string; // INSERT statement without PK
+	originalPK: string; // Original primary key value
+}
+
+// Execute merge with FK cascade support
+export async function executeMySQLWithCascade(
+	connectionId: string,
+	regularStatements: string[], // Regular UPDATE/DELETE/INSERT statements
+	insertAsNewOps: InsertAsNewOperation[], // Insert-as-new operations needing ID capture
+	fkCascadeChain: FkCascadeMapping[], // FK cascade mappings
+): Promise<{
+	success: boolean;
+	error?: string;
+	newIdMap?: Record<string, number>;
+}> {
+	const connection = connections.get(connectionId);
+	if (!connection) {
+		throw new Error("Connection not found");
+	}
+
+	const newIdMap: Record<string, number> = {};
+
+	try {
+		await connection.beginTransaction();
+
+		// 1. Execute regular statements first
+		for (const stmt of regularStatements) {
+			await connection.execute(stmt);
+		}
+
+		// 2. Execute insert-as-new operations and capture new IDs
+		for (const op of insertAsNewOps) {
+			await connection.execute(op.sql);
+
+			// Get the last inserted ID
+			const [result] = await connection.execute<mysql.RowDataPacket[]>(
+				"SELECT LAST_INSERT_ID() as lastId",
+			);
+			const newId = result[0].lastId as number;
+			newIdMap[op.originalPK] = newId;
+		}
+
+		// 3. Execute FK cascades recursively
+		for (const cascade of fkCascadeChain) {
+			await executeCascadeInserts(connection, cascade, newIdMap);
+		}
+
+		await connection.commit();
+		return { success: true, newIdMap };
+	} catch (error) {
+		await connection.rollback();
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
+}
+
+// Recursively copy linked rows
+async function executeCascadeInserts(
+	connection: mysql.Connection,
+	cascade: FkCascadeMapping,
+	idMap: Record<string, number>,
+): Promise<void> {
+	// For each old→new ID mapping, copy linked rows
+	for (const [oldPK, newPK] of Object.entries(idMap)) {
+		// Get columns for the table
+		const [columnsResult] = await connection.execute<mysql.RowDataPacket[]>(
+			`DESCRIBE \`${cascade.table}\``,
+		);
+
+		// Find the primary key column
+		const pkCol = columnsResult.find((c) => c.Key === "PRI");
+		const pkColName = pkCol?.Field;
+
+		// Get all non-PK column names
+		const nonPkCols = columnsResult
+			.filter((c) => c.Key !== "PRI")
+			.map((c) => c.Field as string);
+
+		if (nonPkCols.length === 0) continue;
+
+		// Get the rows to copy
+		const [rowsToCopy] = await connection.execute<mysql.RowDataPacket[]>(
+			`SELECT * FROM \`${cascade.table}\` WHERE \`${cascade.column}\` = ?`,
+			[oldPK],
+		);
+
+		// Track new IDs for child cascades
+		const childIdMap: Record<string, number> = {};
+
+		// Copy each row with the FK updated to the new ID
+		for (const row of rowsToCopy) {
+			const oldRowPK = pkColName ? String(row[pkColName]) : null;
+
+			// Build INSERT with new FK value
+			const cols = nonPkCols.map((c) => `\`${c}\``).join(", ");
+			const vals = nonPkCols
+				.map((c) => {
+					const val = row[c];
+					if (c === cascade.column) {
+						return newPK; // Replace FK with new ID
+					}
+					if (val === null) return "NULL";
+					if (typeof val === "number") return val;
+					// Handle Date objects - format for MySQL
+					if (val instanceof Date) {
+						return `'${val.toISOString().slice(0, 19).replace("T", " ")}'`;
+					}
+					if (typeof val === "object")
+						return `'${JSON.stringify(val).replace(/'/g, "''")}'`;
+					return `'${String(val).replace(/'/g, "''")}'`;
+				})
+				.join(", ");
+
+			await connection.execute(
+				`INSERT INTO \`${cascade.table}\` (${cols}) VALUES (${vals})`,
+			);
+
+			// Capture new ID for child cascades
+			if (oldRowPK && cascade.children.length > 0) {
+				const [result] = await connection.execute<mysql.RowDataPacket[]>(
+					"SELECT LAST_INSERT_ID() as lastId",
+				);
+				childIdMap[oldRowPK] = result[0].lastId as number;
+			}
+		}
+
+		// Recurse for child cascades
+		for (const childCascade of cascade.children) {
+			await executeCascadeInserts(connection, childCascade, childIdMap);
+		}
+	}
+}

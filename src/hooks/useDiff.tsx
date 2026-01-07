@@ -12,6 +12,14 @@ interface MergeOperation {
 	type: "insert" | "update" | "delete";
 	primaryKey: string;
 	sql: string;
+	isInsertAsNew?: boolean;
+}
+
+// FK Cascade structure (recursive)
+export interface FkCascade {
+	table: string;
+	column: string;
+	children: FkCascade[];
 }
 
 interface DiffContextType {
@@ -48,6 +56,11 @@ interface DiffContextType {
 	// Insert as new
 	insertAsNewRows: Set<string>;
 	toggleInsertAsNew: (primaryKey: string) => void;
+	// FK Cascade
+	fkCascadeChain: FkCascade[];
+	addFkCascade: (parentPath: number[], cascade: FkCascade) => void;
+	removeFkCascade: (path: number[]) => void;
+	clearFkCascades: () => void;
 }
 
 const DiffContext = createContext<DiffContextType | null>(null);
@@ -74,6 +87,7 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 	const [insertAsNewRows, setInsertAsNewRows] = useState<Set<string>>(
 		new Set(),
 	);
+	const [fkCascadeChain, setFkCascadeChain] = useState<FkCascade[]>([]);
 
 	const setSourceConnection = (connectionId: string | null) => {
 		setSelection((prev) => ({
@@ -170,6 +184,7 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 		setError(null);
 		setSelectedRows(new Set());
 		setMergedCells(new Map());
+		setInsertAsNewRows(new Set());
 	};
 
 	// Merge actions
@@ -266,6 +281,7 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 						type: "insert",
 						primaryKey: row.primaryKey,
 						sql: `INSERT INTO ${tableName} (${nonPkColumns.join(", ")}) VALUES (${values.join(", ")});`,
+						isInsertAsNew: true,
 					});
 				} else if (isRowSelected || hasCellMerges) {
 					// Row exists in both but differs - UPDATE target to match source
@@ -304,6 +320,11 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 		setMergeSuccess(false);
 
 		try {
+			// Build insertAsNewOps for operations that need ID capture
+			const insertAsNewOps = mergeOperations
+				.filter((op) => op.isInsertAsNew)
+				.map((op) => ({ sql: op.sql, originalPK: op.primaryKey }));
+
 			const response = await fetch(
 				`/api/database/${targetConnection.id}/execute`,
 				{
@@ -312,6 +333,10 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 					body: JSON.stringify({
 						type: targetConnection.type,
 						statements: mergeOperations.map((op) => op.sql),
+						insertAsNewOps:
+							insertAsNewOps.length > 0 ? insertAsNewOps : undefined,
+						fkCascadeChain:
+							fkCascadeChain.length > 0 ? fkCascadeChain : undefined,
 					}),
 				},
 			);
@@ -322,6 +347,7 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 				setMergeSuccess(true);
 				setSelectedRows(new Set());
 				setMergedCells(new Map());
+				setInsertAsNewRows(new Set());
 			} else {
 				setMergeError(result.error || "Merge failed");
 			}
@@ -336,6 +362,43 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 		setMergeError(null);
 		setMergeSuccess(false);
 	};
+
+	// FK Cascade management
+	const addFkCascade = (parentPath: number[], cascade: FkCascade) => {
+		setFkCascadeChain((prev) => {
+			if (parentPath.length === 0) {
+				// Add at root level
+				return [...prev, cascade];
+			}
+			// Deep clone and navigate to parent
+			const next = JSON.parse(JSON.stringify(prev)) as FkCascade[];
+			let current = next;
+			for (let i = 0; i < parentPath.length - 1; i++) {
+				current = current[parentPath[i]].children;
+			}
+			current[parentPath[parentPath.length - 1]].children.push(cascade);
+			return next;
+		});
+	};
+
+	const removeFkCascade = (path: number[]) => {
+		if (path.length === 0) return;
+		setFkCascadeChain((prev) => {
+			const next = JSON.parse(JSON.stringify(prev)) as FkCascade[];
+			if (path.length === 1) {
+				next.splice(path[0], 1);
+				return next;
+			}
+			let current = next;
+			for (let i = 0; i < path.length - 1; i++) {
+				current = current[path[i]].children;
+			}
+			current.splice(path[path.length - 1], 1);
+			return next;
+		});
+	};
+
+	const clearFkCascades = () => setFkCascadeChain([]);
 
 	return (
 		<DiffContext.Provider
@@ -364,6 +427,10 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 				mergeCell,
 				insertAsNewRows,
 				toggleInsertAsNew,
+				fkCascadeChain,
+				addFkCascade,
+				removeFkCascade,
+				clearFkCascades,
 			}}
 		>
 			{children}
@@ -384,6 +451,15 @@ function formatValue(value: unknown, type: ConnectionType): string {
 	if (value === null || value === undefined) return "NULL";
 	if (typeof value === "number") return String(value);
 	if (typeof value === "boolean") return value ? "1" : "0";
+
+	// Handle Date objects (MySQL returns dates as Date objects)
+	if (value instanceof Date) {
+		if (type === "mysql") {
+			// Format as YYYY-MM-DD HH:MM:SS for MySQL
+			return `'${value.toISOString().slice(0, 19).replace("T", " ")}'`;
+		}
+		return `'${value.toISOString()}'`;
+	}
 
 	// Handle objects (e.g., JSON columns)
 	if (typeof value === "object") {

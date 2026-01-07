@@ -1,6 +1,16 @@
 import { Router } from "express";
-import { getMySQLTableData, getMySQLTables } from "../lib/mysql";
-import { getSQLiteTableData, getSQLiteTables } from "../lib/sqlite";
+import {
+	executeMySQLStatements,
+	executeMySQLWithCascade,
+	getMySQLTableData,
+	getMySQLTables,
+} from "../lib/mysql";
+import {
+	executeSQLiteStatements,
+	executeSQLiteWithCascade,
+	getSQLiteTableData,
+	getSQLiteTables,
+} from "../lib/sqlite";
 
 export const databaseRouter = Router();
 
@@ -67,10 +77,10 @@ databaseRouter.get(
 	},
 );
 
-// Execute SQL statements
+// Execute SQL statements (with optional FK cascade support)
 databaseRouter.post("/:connectionId/execute", async (req, res) => {
 	const { connectionId } = req.params;
-	const { type, statements } = req.body;
+	const { type, statements, insertAsNewOps, fkCascadeChain } = req.body;
 
 	if (!Array.isArray(statements)) {
 		res
@@ -79,20 +89,57 @@ databaseRouter.post("/:connectionId/execute", async (req, res) => {
 		return;
 	}
 
+	// Check if this is a cascade merge
+	const hasInsertAsNew =
+		Array.isArray(insertAsNewOps) && insertAsNewOps.length > 0;
+	const hasCascade = Array.isArray(fkCascadeChain) && fkCascadeChain.length > 0;
+	const needsCascade = hasInsertAsNew || hasCascade;
+
+	// Filter out insert-as-new statements from regular statements
+	const regularStatements = needsCascade
+		? statements.filter(
+				(s: string) =>
+					!insertAsNewOps?.some((op: { sql: string }) => op.sql === s),
+			)
+		: statements;
+
 	try {
+		let result: {
+			success: boolean;
+			error?: string;
+			newIdMap?: Record<string, number>;
+		};
+
 		if (type === "sqlite") {
-			const { executeSQLiteStatements } = await import("../lib/sqlite");
-			const result = executeSQLiteStatements(connectionId, statements);
-			res.json(result);
+			if (needsCascade) {
+				result = executeSQLiteWithCascade(
+					connectionId,
+					regularStatements,
+					insertAsNewOps || [],
+					fkCascadeChain || [],
+				);
+			} else {
+				result = executeSQLiteStatements(connectionId, statements);
+			}
 		} else if (type === "mysql") {
-			const { executeMySQLStatements } = await import("../lib/mysql");
-			const result = await executeMySQLStatements(connectionId, statements);
-			res.json(result);
+			if (needsCascade) {
+				result = await executeMySQLWithCascade(
+					connectionId,
+					regularStatements,
+					insertAsNewOps || [],
+					fkCascadeChain || [],
+				);
+			} else {
+				result = await executeMySQLStatements(connectionId, statements);
+			}
 		} else {
 			res
 				.status(400)
 				.json({ success: false, error: "Unknown connection type" });
+			return;
 		}
+
+		res.json(result);
 	} catch (error) {
 		res.status(500).json({
 			success: false,

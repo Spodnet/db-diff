@@ -175,9 +175,7 @@ export function SideBySideView({
 								return (
 									<tr
 										key={row.primaryKey}
-										className={`${getStatusBgClass(row.status)} ${
-											isSelected ? "bg-accent/10" : ""
-										} ${
+										className={`${getStatusBgClass(row.status)} ${isSelected ? "bg-accent/10" : ""} ${
 											isInsertAsNew ? "bg-blue-500/10" : ""
 										} border-b border-border/50 hover:bg-surface-elevated/50 transition-colors cursor-pointer h-[36.5px]`}
 										onDoubleClick={() => onToggleSelection(row.primaryKey)}
@@ -326,9 +324,7 @@ export function SideBySideView({
 								return (
 									<tr
 										key={row.primaryKey}
-										className={`border-b border-border/50 ${
-											isSelected ? "bg-accent/5" : ""
-										} ${
+										className={`border-b border-border/50 ${isSelected ? "bg-accent/5" : ""} ${
 											isAdded
 												? "bg-added-bg"
 												: isModified

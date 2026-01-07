@@ -9,6 +9,9 @@ Please note this app was vibe coded with antigravity, the code is not security a
 ## ✨ Key Features
 
 - **Multi-Database Support**: Connect to and diff between **SQLite** and **MySQL** databases.
+- **SSH Tunneling**: Securely connect to remote MySQL databases through SSH tunnels.
+  - **Config Alias Mode**: Use your existing `~/.ssh/config` aliases for quick setup.
+  - **Manual Mode**: Full control with custom host, port, username, private key, passphrase, or password authentication.
 - **Visual Data Diffing**:
   - **Row-level Comparison**: Instantly see Added, Deleted, and Modified rows.
   - **Cell-level Precision**: Highlight specific column changes within modified rows.

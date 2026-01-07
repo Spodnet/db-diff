@@ -16,9 +16,9 @@ app.use("/api/database", databaseRouter);
 
 // Health check
 app.get("/api/health", (_req, res) => {
-	res.json({ status: "ok", timestamp: new Date().toISOString() });
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 app.listen(PORT, () => {
-	console.log(`🚀 DB-Diff server running on http://localhost:${PORT}`);
+    console.log(`🚀 DB-Diff server running on http://localhost:${PORT}`);
 });

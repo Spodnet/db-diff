@@ -8,262 +8,262 @@ import { DiffResultsGrid } from "./DiffResultsGrid";
 import { MergeConfirmationModal } from "./modals/MergeConfirmationModal";
 
 export function DiffWorkspace() {
-	const { connections, connectionStatuses, connectTo, connectionTables } =
-		useConnections();
-	const {
-		selection,
-		diffResult,
-		isComparing,
-		error,
-		setSourceConnection,
-		setSourceTable,
-		setTargetConnection,
-		setTargetTable,
-		runComparison,
-		selectedRows,
-		mergedCells,
-		mergeOperations,
-		executeMerge,
-		isMerging,
-		mergeSuccess,
-		mergeError,
-		clearMergeState,
-		insertAsNewRows,
-		fkCascadeChain,
-		addFkCascade,
-		removeFkCascade,
-	} = useDiff();
+    const { connections, connectionStatuses, connectTo, connectionTables } =
+        useConnections();
+    const {
+        selection,
+        diffResult,
+        isComparing,
+        error,
+        setSourceConnection,
+        setSourceTable,
+        setTargetConnection,
+        setTargetTable,
+        runComparison,
+        selectedRows,
+        mergedCells,
+        mergeOperations,
+        executeMerge,
+        isMerging,
+        mergeSuccess,
+        mergeError,
+        clearMergeState,
+        insertAsNewRows,
+        fkCascadeChain,
+        addFkCascade,
+        removeFkCascade,
+    } = useDiff();
 
-	const [sourceDropdownOpen, setSourceDropdownOpen] = useState(false);
-	const [targetDropdownOpen, setTargetDropdownOpen] = useState(false);
-	const [showMergeModal, setShowMergeModal] = useState(false);
+    const [sourceDropdownOpen, setSourceDropdownOpen] = useState(false);
+    const [targetDropdownOpen, setTargetDropdownOpen] = useState(false);
+    const [showMergeModal, setShowMergeModal] = useState(false);
 
-	const getConnection = (id: string | null): Connection | undefined =>
-		connections.find((c) => c.id === id);
+    const getConnection = (id: string | null): Connection | undefined =>
+        connections.find((c) => c.id === id);
 
-	const sourceConnection = getConnection(selection.sourceConnectionId);
-	const targetConnection = getConnection(selection.targetConnectionId);
-	const sourceTables = selection.sourceConnectionId
-		? connectionTables.get(selection.sourceConnectionId) || []
-		: [];
-	const targetTables = selection.targetConnectionId
-		? connectionTables.get(selection.targetConnectionId) || []
-		: [];
+    const sourceConnection = getConnection(selection.sourceConnectionId);
+    const targetConnection = getConnection(selection.targetConnectionId);
+    const sourceTables = selection.sourceConnectionId
+        ? connectionTables.get(selection.sourceConnectionId) || []
+        : [];
+    const targetTables = selection.targetConnectionId
+        ? connectionTables.get(selection.targetConnectionId) || []
+        : [];
 
-	const canCompare =
-		selection.sourceConnectionId &&
-		selection.sourceTableName &&
-		selection.targetConnectionId &&
-		selection.targetTableName;
+    const canCompare =
+        selection.sourceConnectionId &&
+        selection.sourceTableName &&
+        selection.targetConnectionId &&
+        selection.targetTableName;
 
-	const selectedRowCount =
-		selectedRows.size +
-		[...(mergedCells?.keys() || [])].filter((k) => !selectedRows.has(k))
-			.length +
-		[...(insertAsNewRows || [])].filter(
-			(k) => !selectedRows.has(k) && !mergedCells?.has(k),
-		).length;
-	const hasSelection = selectedRowCount > 0;
+    const selectedRowCount =
+        selectedRows.size +
+        [...(mergedCells?.keys() || [])].filter((k) => !selectedRows.has(k))
+            .length +
+        [...(insertAsNewRows || [])].filter(
+            (k) => !selectedRows.has(k) && !mergedCells?.has(k),
+        ).length;
+    const hasSelection = selectedRowCount > 0;
 
-	const handleCompare = useCallback(async () => {
-		if (!canCompare) return;
+    const handleCompare = useCallback(async () => {
+        if (!canCompare) return;
 
-		const srcConn = connections.find(
-			(c) => c.id === selection.sourceConnectionId,
-		);
-		const tgtConn = connections.find(
-			(c) => c.id === selection.targetConnectionId,
-		);
-		const srcTable = connectionTables
-			.get(selection.sourceConnectionId || "")
-			?.find((t) => t.name === selection.sourceTableName);
-		const tgtTable = connectionTables
-			.get(selection.targetConnectionId || "")
-			?.find((t) => t.name === selection.targetTableName);
+        const srcConn = connections.find(
+            (c) => c.id === selection.sourceConnectionId,
+        );
+        const tgtConn = connections.find(
+            (c) => c.id === selection.targetConnectionId,
+        );
+        const srcTable = connectionTables
+            .get(selection.sourceConnectionId || "")
+            ?.find((t) => t.name === selection.sourceTableName);
+        const tgtTable = connectionTables
+            .get(selection.targetConnectionId || "")
+            ?.find((t) => t.name === selection.targetTableName);
 
-		if (srcConn && tgtConn && srcTable && tgtTable) {
-			await runComparison(srcConn, tgtConn, srcTable, tgtTable);
-		}
-	}, [canCompare, selection, runComparison, connections, connectionTables]);
+        if (srcConn && tgtConn && srcTable && tgtTable) {
+            await runComparison(srcConn, tgtConn, srcTable, tgtTable);
+        }
+    }, [canCompare, selection, runComparison, connections, connectionTables]);
 
-	// Close modal and refresh after successful merge
-	useEffect(() => {
-		if (mergeSuccess && showMergeModal) {
-			const timer = setTimeout(() => {
-				setShowMergeModal(false);
-				clearMergeState();
-				handleCompare();
-			}, 1500);
-			return () => clearTimeout(timer);
-		}
-	}, [mergeSuccess, showMergeModal, clearMergeState, handleCompare]);
+    // Close modal and refresh after successful merge
+    useEffect(() => {
+        if (mergeSuccess && showMergeModal) {
+            const timer = setTimeout(() => {
+                setShowMergeModal(false);
+                clearMergeState();
+                handleCompare();
+            }, 1500);
+            return () => clearTimeout(timer);
+        }
+    }, [mergeSuccess, showMergeModal, clearMergeState, handleCompare]);
 
-	const handleConnectAndSelect = async (
-		connection: Connection,
-		side: "source" | "target",
-	) => {
-		await connectTo(connection);
-		if (side === "source") {
-			setSourceConnection(connection.id);
-			setSourceDropdownOpen(false);
-		} else {
-			setTargetConnection(connection.id);
-			setTargetDropdownOpen(false);
-		}
-	};
+    const handleConnectAndSelect = async (
+        connection: Connection,
+        side: "source" | "target",
+    ) => {
+        await connectTo(connection);
+        if (side === "source") {
+            setSourceConnection(connection.id);
+            setSourceDropdownOpen(false);
+        } else {
+            setTargetConnection(connection.id);
+            setTargetDropdownOpen(false);
+        }
+    };
 
-	const handleMergeClick = () => {
-		setShowMergeModal(true);
-	};
+    const handleMergeClick = () => {
+        setShowMergeModal(true);
+    };
 
-	const handleConfirmMerge = async () => {
-		if (!targetConnection) return;
-		await executeMerge(targetConnection);
-		// Note: mergeSuccess/mergeError state will be set by executeMerge
-		// The modal will stay open to show success/error message
-		// We'll close it after a delay only on success (via effect or callback)
-	};
+    const handleConfirmMerge = async () => {
+        if (!targetConnection) return;
+        await executeMerge(targetConnection);
+        // Note: mergeSuccess/mergeError state will be set by executeMerge
+        // The modal will stay open to show success/error message
+        // We'll close it after a delay only on success (via effect or callback)
+    };
 
-	return (
-		<div className="h-full flex flex-col p-6">
-			{/* Source/Target Selection */}
-			<div className="flex items-center gap-4 mb-6">
-				{/* Source Selector */}
-				<ConnectionSelector
-					label="Source"
-					connections={connections}
-					connectionStatuses={connectionStatuses}
-					selectedConnection={sourceConnection}
-					onConnectionClick={(conn) => {
-						const status = connectionStatuses.get(conn.id);
-						if (status?.status === "connected") {
-							setSourceConnection(conn.id);
-							setSourceDropdownOpen(false);
-						} else {
-							handleConnectAndSelect(conn, "source");
-						}
-					}}
-					tables={sourceTables}
-					selectedTableName={selection.sourceTableName}
-					onTableSelect={setSourceTable}
-					isOpen={sourceDropdownOpen}
-					onToggle={() => setSourceDropdownOpen(!sourceDropdownOpen)}
-				/>
+    return (
+        <div className="h-full flex flex-col p-6">
+            {/* Source/Target Selection */}
+            <div className="flex items-center gap-4 mb-6">
+                {/* Source Selector */}
+                <ConnectionSelector
+                    label="Source"
+                    connections={connections}
+                    connectionStatuses={connectionStatuses}
+                    selectedConnection={sourceConnection}
+                    onConnectionClick={(conn) => {
+                        const status = connectionStatuses.get(conn.id);
+                        if (status?.status === "connected") {
+                            setSourceConnection(conn.id);
+                            setSourceDropdownOpen(false);
+                        } else {
+                            handleConnectAndSelect(conn, "source");
+                        }
+                    }}
+                    tables={sourceTables}
+                    selectedTableName={selection.sourceTableName}
+                    onTableSelect={setSourceTable}
+                    isOpen={sourceDropdownOpen}
+                    onToggle={() => setSourceDropdownOpen(!sourceDropdownOpen)}
+                />
 
-				{/* Compare Arrow */}
-				<div className="pt-6">
-					<div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
-						<GitCompare className="w-5 h-5 text-white" />
-					</div>
-				</div>
+                {/* Compare Arrow */}
+                <div className="pt-6">
+                    <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
+                        <GitCompare className="w-5 h-5 text-white" />
+                    </div>
+                </div>
 
-				{/* Target Selector */}
-				<ConnectionSelector
-					label="Target"
-					connections={connections}
-					connectionStatuses={connectionStatuses}
-					selectedConnection={targetConnection}
-					onConnectionClick={(conn) => {
-						const status = connectionStatuses.get(conn.id);
-						if (status?.status === "connected") {
-							setTargetConnection(conn.id);
-							setTargetDropdownOpen(false);
-						} else {
-							handleConnectAndSelect(conn, "target");
-						}
-					}}
-					tables={targetTables}
-					selectedTableName={selection.targetTableName}
-					onTableSelect={setTargetTable}
-					isOpen={targetDropdownOpen}
-					onToggle={() => setTargetDropdownOpen(!targetDropdownOpen)}
-				/>
+                {/* Target Selector */}
+                <ConnectionSelector
+                    label="Target"
+                    connections={connections}
+                    connectionStatuses={connectionStatuses}
+                    selectedConnection={targetConnection}
+                    onConnectionClick={(conn) => {
+                        const status = connectionStatuses.get(conn.id);
+                        if (status?.status === "connected") {
+                            setTargetConnection(conn.id);
+                            setTargetDropdownOpen(false);
+                        } else {
+                            handleConnectAndSelect(conn, "target");
+                        }
+                    }}
+                    tables={targetTables}
+                    selectedTableName={selection.targetTableName}
+                    onTableSelect={setTargetTable}
+                    isOpen={targetDropdownOpen}
+                    onToggle={() => setTargetDropdownOpen(!targetDropdownOpen)}
+                />
 
-				{/* Compare Button */}
-				<div className="flex flex-col gap-2 pt-6">
-					<button
-						type="button"
-						onClick={handleCompare}
-						disabled={!canCompare || isComparing}
-						className="px-6 py-3 bg-accent text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent-hover transition-colors flex items-center gap-2"
-					>
-						{isComparing ? (
-							<>
-								<Loader2 className="w-4 h-4 animate-spin" />
-								Comparing...
-							</>
-						) : (
-							"Compare"
-						)}
-					</button>
+                {/* Compare Button */}
+                <div className="flex flex-col gap-2 pt-6">
+                    <button
+                        type="button"
+                        onClick={handleCompare}
+                        disabled={!canCompare || isComparing}
+                        className="px-6 py-3 bg-accent text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent-hover transition-colors flex items-center gap-2"
+                    >
+                        {isComparing ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Comparing...
+                            </>
+                        ) : (
+                            "Compare"
+                        )}
+                    </button>
 
-					{diffResult && hasSelection && (
-						<button
-							type="button"
-							onClick={handleMergeClick}
-							className="px-6 py-3 bg-success text-white rounded-lg font-medium hover:bg-success/90 shadow-lg shadow-success/20 transition-all flex items-center gap-2"
-						>
-							<GitMerge className="w-4 h-4" />
-							Merge ({selectedRowCount})
-						</button>
-					)}
-				</div>
-			</div>
+                    {diffResult && hasSelection && (
+                        <button
+                            type="button"
+                            onClick={handleMergeClick}
+                            className="px-6 py-3 bg-success text-white rounded-lg font-medium hover:bg-success/90 shadow-lg shadow-success/20 transition-all flex items-center gap-2"
+                        >
+                            <GitMerge className="w-4 h-4" />
+                            Merge ({selectedRowCount})
+                        </button>
+                    )}
+                </div>
+            </div>
 
-			{/* Error Display */}
-			{error && (
-				<div className="mb-4 px-4 py-3 bg-deleted-bg text-deleted rounded-lg text-sm">
-					{error}
-				</div>
-			)}
+            {/* Error Display */}
+            {error && (
+                <div className="mb-4 px-4 py-3 bg-deleted-bg text-deleted rounded-lg text-sm">
+                    {error}
+                </div>
+            )}
 
-			{/* Selection Summary (appears when there's a selection) */}
-			{diffResult && hasSelection && (
-				<div className="flex items-center gap-4 bg-surface-elevated px-4 py-2 border-t border-border animate-in slide-in-from-bottom duration-200 mb-4 rounded-lg">
-					<span className="text-sm text-text-primary">
-						{selectedRowCount} rows selected for merge.
-					</span>
-				</div>
-			)}
+            {/* Selection Summary (appears when there's a selection) */}
+            {diffResult && hasSelection && (
+                <div className="flex items-center gap-4 bg-surface-elevated px-4 py-2 border-t border-border animate-in slide-in-from-bottom duration-200 mb-4 rounded-lg">
+                    <span className="text-sm text-text-primary">
+                        {selectedRowCount} rows selected for merge.
+                    </span>
+                </div>
+            )}
 
-			{/* Results or Empty State */}
-			{diffResult ? (
-				<DiffResultsGrid result={diffResult} />
-			) : (
-				<div className="flex-1 flex flex-col items-center justify-center bg-surface rounded-xl border border-border">
-					<div className="w-20 h-20 rounded-full bg-surface-elevated flex items-center justify-center mb-4">
-						<GitCompare className="w-10 h-10 text-text-muted" />
-					</div>
-					<h2 className="text-xl font-semibold text-text-primary mb-2">
-						Ready to Compare
-					</h2>
-					<p className="text-sm text-text-secondary text-center max-w-md">
-						Select a source and target database connection, then choose tables
-						to compare their contents side by side.
-					</p>
-				</div>
-			)}
+            {/* Results or Empty State */}
+            {diffResult ? (
+                <DiffResultsGrid result={diffResult} />
+            ) : (
+                <div className="flex-1 flex flex-col items-center justify-center bg-surface rounded-xl border border-border">
+                    <div className="w-20 h-20 rounded-full bg-surface-elevated flex items-center justify-center mb-4">
+                        <GitCompare className="w-10 h-10 text-text-muted" />
+                    </div>
+                    <h2 className="text-xl font-semibold text-text-primary mb-2">
+                        Ready to Compare
+                    </h2>
+                    <p className="text-sm text-text-secondary text-center max-w-md">
+                        Select a source and target database connection, then
+                        choose tables to compare their contents side by side.
+                    </p>
+                </div>
+            )}
 
-			{/* Merge Confirmation Modal */}
-			{showMergeModal && (
-				<MergeConfirmationModal
-					onClose={() => setShowMergeModal(false)}
-					onConfirm={handleConfirmMerge}
-					targetConnection={targetConnection}
-					sourceConnectionName={diffResult?.sourceConnection}
-					targetConnectionName={diffResult?.targetConnection}
-					tableName={diffResult?.tableName}
-					mergeOperations={mergeOperations}
-					isMerging={isMerging}
-					mergeError={mergeError}
-					mergeSuccess={mergeSuccess}
-					hasInsertAsNew={insertAsNewRows.size > 0}
-					targetTables={targetTables}
-					fkCascadeChain={fkCascadeChain}
-					onAddFkCascade={addFkCascade}
-					onRemoveFkCascade={removeFkCascade}
-				/>
-			)}
-		</div>
-	);
+            {/* Merge Confirmation Modal */}
+            {showMergeModal && (
+                <MergeConfirmationModal
+                    onClose={() => setShowMergeModal(false)}
+                    onConfirm={handleConfirmMerge}
+                    targetConnection={targetConnection}
+                    sourceConnectionName={diffResult?.sourceConnection}
+                    targetConnectionName={diffResult?.targetConnection}
+                    tableName={diffResult?.tableName}
+                    mergeOperations={mergeOperations}
+                    isMerging={isMerging}
+                    mergeError={mergeError}
+                    mergeSuccess={mergeSuccess}
+                    hasInsertAsNew={insertAsNewRows.size > 0}
+                    targetTables={targetTables}
+                    fkCascadeChain={fkCascadeChain}
+                    onAddFkCascade={addFkCascade}
+                    onRemoveFkCascade={removeFkCascade}
+                />
+            )}
+        </div>
+    );
 }

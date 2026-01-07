@@ -14,8 +14,10 @@ type ViewMode = "inline" | "side-by-side";
 
 export function DiffResultsGrid({ result }: DiffResultsGridProps) {
 	const [viewMode, setViewMode] = useState<ViewMode>("side-by-side");
-	const [visibleStatuses, setVisibleStatuses] = useState<Set<DiffStatus>>(
-		new Set(["added", "deleted", "modified", "unchanged"]),
+	// FilterStatus includes DiffStatus + "newRow" pseudo-status
+	type FilterStatus = DiffStatus | "newRow";
+	const [visibleStatuses, setVisibleStatuses] = useState<Set<FilterStatus>>(
+		new Set(["added", "deleted", "modified", "unchanged", "newRow"]),
 	);
 	const {
 		selectedRows,
@@ -38,7 +40,7 @@ export function DiffResultsGrid({ result }: DiffResultsGridProps) {
 		tableName,
 	} = result;
 
-	const toggleStatus = (status: DiffStatus) => {
+	const toggleStatus = (status: FilterStatus) => {
 		setVisibleStatuses((prev) => {
 			const next = new Set(prev);
 			if (next.has(status)) {
@@ -50,8 +52,18 @@ export function DiffResultsGrid({ result }: DiffResultsGridProps) {
 		});
 	};
 
-	// Filter rows based on visibility
-	const visibleRows = rows.filter((r) => visibleStatuses.has(r.status));
+	// Count of rows marked as insert-as-new
+	const insertAsNewCount = insertAsNewRows.size;
+
+	// Filter rows based on visibility (handle newRow as a separate case)
+	const visibleRows = rows.filter((r) => {
+		const isNewRow = insertAsNewRows.has(r.primaryKey);
+		if (isNewRow) {
+			// newRow pseudo-status
+			return visibleStatuses.has("newRow");
+		}
+		return visibleStatuses.has(r.status);
+	});
 	const changedVisibleRows = visibleRows.filter(
 		(r) => r.status !== "unchanged",
 	);
@@ -183,6 +195,7 @@ export function DiffResultsGrid({ result }: DiffResultsGridProps) {
 				targetConnection={targetConnection}
 				visibleStatuses={visibleStatuses}
 				onToggleStatus={toggleStatus}
+				insertAsNewCount={insertAsNewCount}
 			/>
 
 			{/* Results */}

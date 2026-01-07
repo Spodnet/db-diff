@@ -1,6 +1,8 @@
-import { Columns, Minus, Plus, RefreshCw, Rows } from "lucide-react";
+import { Columns, Copy, Minus, Plus, RefreshCw, Rows } from "lucide-react";
 
 import type { DiffStatus, TableDiffResult } from "../../lib/types";
+
+type FilterStatus = DiffStatus | "newRow";
 
 interface DiffStatsProps {
 	summary: TableDiffResult["summary"];
@@ -9,8 +11,9 @@ interface DiffStatsProps {
 	tableName: string;
 	sourceConnection: string;
 	targetConnection: string;
-	visibleStatuses: Set<DiffStatus>;
-	onToggleStatus: (status: DiffStatus) => void;
+	visibleStatuses: Set<FilterStatus>;
+	onToggleStatus: (status: FilterStatus) => void;
+	insertAsNewCount: number;
 }
 
 export function DiffStats({
@@ -22,8 +25,9 @@ export function DiffStats({
 	targetConnection,
 	visibleStatuses,
 	onToggleStatus,
+	insertAsNewCount,
 }: DiffStatsProps) {
-	const getFilterStyle = (status: DiffStatus, colorClass: string) => {
+	const getFilterStyle = (status: FilterStatus, colorClass: string) => {
 		const isVisible = visibleStatuses.has(status);
 		return `flex items-center gap-1 px-2 py-1 rounded cursor-pointer transition-all border ${
 			isVisible
@@ -98,8 +102,19 @@ export function DiffStats({
 						title="Toggle Modified Rows"
 					>
 						<RefreshCw className="w-3 h-3" />
-						{summary.modified}
+						{summary.modified - insertAsNewCount}
 					</button>
+					{insertAsNewCount > 0 && (
+						<button
+							type="button"
+							onClick={() => onToggleStatus("newRow")}
+							className={getFilterStyle("newRow", "text-blue-400")}
+							title="Toggle New Row (Insert as New)"
+						>
+							<Copy className="w-3 h-3" />
+							{insertAsNewCount}
+						</button>
+					)}
 					<button
 						type="button"
 						onClick={() => onToggleStatus("unchanged")}

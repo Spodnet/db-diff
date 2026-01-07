@@ -377,6 +377,8 @@ export function Sidebar() {
             )}
 
             <ConnectionFormModal
+                // Force re-render when switching connection to reset form state
+                key={editingConnection?.id || "new"}
                 isOpen={isModalOpen}
                 onClose={handleModalClose}
                 editConnection={editingConnection}

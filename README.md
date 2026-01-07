@@ -15,6 +15,9 @@ Please note this app was vibe coded with antigravity, the code is not security a
 - **Visual Data Diffing**:
   - **Row-level Comparison**: Instantly see Added, Deleted, and Modified rows.
   - **Cell-level Precision**: Highlight specific column changes within modified rows.
+  - **Row Limits & Load More**: Handle large datasets efficiently with configurable limits (default 500) and on-demand "Load More" / "Load All" controls.
+  - **Column Ignore**: Exclude specific columns (e.g., timestamps) from comparison to focus on meaningful data changes.
+  - **Batch Comparison**: Select multiple tables to compare simultaneously, opening dedicated tabs for each table pair.
 - **Smart Merging**:
   - Selectively merge changes from a source database to a target database.
   - Supports **INSERT**, **UPDATE**, and **DELETE** operations.

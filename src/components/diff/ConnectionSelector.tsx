@@ -1,4 +1,4 @@
-import { ChevronDown, Database } from "lucide-react";
+import { CheckSquare, ChevronDown, Database, Square } from "lucide-react";
 import type { Connection, ConnectionStatus, TableInfo } from "../../lib/types";
 
 interface ConnectionSelectorProps {
@@ -8,8 +8,8 @@ interface ConnectionSelectorProps {
     selectedConnection?: Connection;
     onConnectionClick: (connection: Connection) => void;
     tables: TableInfo[];
-    selectedTableName: string | null;
-    onTableSelect: (tableName: string | null) => void;
+    selectedTableNames: string[];
+    onTableSelect: (tableNames: string[]) => void;
     isOpen: boolean;
     onToggle: () => void;
 }
@@ -21,7 +21,7 @@ export function ConnectionSelector({
     selectedConnection,
     onConnectionClick,
     tables,
-    selectedTableName,
+    selectedTableNames,
     onTableSelect,
     isOpen,
     onToggle,
@@ -93,21 +93,108 @@ export function ConnectionSelector({
                 {/* Table Dropdown */}
                 {selectedConnection && (
                     <div className="relative">
-                        <select
-                            value={selectedTableName || ""}
-                            onChange={(e) =>
-                                onTableSelect(e.target.value || null)
-                            }
-                            className="w-full px-4 py-3 pr-10 bg-surface border border-border rounded-lg text-sm text-text-primary appearance-none focus:border-accent focus:outline-none cursor-pointer"
+                        <button
+                            type="button"
+                            onClick={onToggle}
+                            className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-surface border border-border rounded-lg text-sm hover:border-accent transition-colors"
                         >
-                            <option value="">Select table...</option>
-                            {tables.map((table) => (
-                                <option key={table.name} value={table.name}>
-                                    {table.name} ({table.rowCount} rows)
-                                </option>
-                            ))}
-                        </select>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+                            <span
+                                className={
+                                    selectedTableNames.length > 0
+                                        ? "text-text-primary"
+                                        : "text-text-secondary"
+                                }
+                            >
+                                {selectedTableNames.length === 0
+                                    ? "Select tables..."
+                                    : selectedTableNames.length === 1
+                                      ? selectedTableNames[0]
+                                      : `${selectedTableNames.length} tables selected`}
+                            </span>
+                            <ChevronDown className="w-4 h-4 text-text-muted" />
+                        </button>
+
+                        {isOpen && (
+                            <div className="absolute z-10 top-full mt-1 w-full bg-surface-elevated border border-border rounded-lg shadow-xl py-1 max-h-[300px] flex flex-col">
+                                {tables.length === 0 ? (
+                                    <p className="px-4 py-2 text-sm text-text-muted">
+                                        No tables found
+                                    </p>
+                                ) : (
+                                    <>
+                                        <div className="flex border-b border-border p-2 gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    onTableSelect(
+                                                        tables.map(
+                                                            (t) => t.name,
+                                                        ),
+                                                    )
+                                                }
+                                                className="text-xs text-accent hover:text-accent-hover font-medium"
+                                            >
+                                                Select All
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    onTableSelect([])
+                                                }
+                                                className="text-xs text-text-muted hover:text-text-primary"
+                                            >
+                                                Clear
+                                            </button>
+                                        </div>
+                                        <div className="overflow-y-auto">
+                                            {tables.map((table) => {
+                                                const isSelected =
+                                                    selectedTableNames.includes(
+                                                        table.name,
+                                                    );
+                                                return (
+                                                    <button
+                                                        key={table.name}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (isSelected) {
+                                                                onTableSelect(
+                                                                    selectedTableNames.filter(
+                                                                        (n) =>
+                                                                            n !==
+                                                                            table.name,
+                                                                    ),
+                                                                );
+                                                            } else {
+                                                                onTableSelect([
+                                                                    ...selectedTableNames,
+                                                                    table.name,
+                                                                ]);
+                                                            }
+                                                        }}
+                                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-text-primary hover:bg-surface transition-colors"
+                                                    >
+                                                        {isSelected ? (
+                                                            <CheckSquare className="w-4 h-4 text-accent" />
+                                                        ) : (
+                                                            <Square className="w-4 h-4 text-text-muted" />
+                                                        )}
+                                                        <span className="flex-1 text-left">
+                                                            {table.name}{" "}
+                                                            <span className="text-text-muted text-xs">
+                                                                (
+                                                                {table.rowCount}
+                                                                )
+                                                            </span>
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

@@ -23,4 +23,5 @@ export interface ViewProps {
     // Insert as new
     insertAsNewRows?: Set<string>;
     onToggleInsertAsNew?: (primaryKey: string) => void;
+    onToggleIgnoredColumn?: (column: string) => void;
 }

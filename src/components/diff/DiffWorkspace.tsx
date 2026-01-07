@@ -1,13 +1,20 @@
 import { GitCompare, GitMerge, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useConnections } from "../../hooks/useConnections";
-import { useDiff } from "../../hooks/useDiff";
+import { DiffProvider, useDiff } from "../../hooks/useDiff";
+import { type Tab, useView } from "../../hooks/useView";
 import type { Connection } from "../../lib/types";
+import { ColumnIgnorePanel } from "./ColumnIgnorePanel";
 import { ConnectionSelector } from "./ConnectionSelector";
 import { DiffResultsGrid } from "./DiffResultsGrid";
 import { MergeConfirmationModal } from "./modals/MergeConfirmationModal";
 
-export function DiffWorkspace() {
+interface DiffWorkspaceProps {
+    initialData?: Tab["data"];
+}
+
+function DiffView({ initialData }: DiffWorkspaceProps) {
+    const { openDiffTab } = useView();
     const { connections, connectionStatuses, connectTo, connectionTables } =
         useConnections();
     const {
@@ -32,29 +39,84 @@ export function DiffWorkspace() {
         fkCascadeChain,
         addFkCascade,
         removeFkCascade,
+        toggleIgnoredColumn,
     } = useDiff();
 
     const [sourceDropdownOpen, setSourceDropdownOpen] = useState(false);
     const [targetDropdownOpen, setTargetDropdownOpen] = useState(false);
     const [showMergeModal, setShowMergeModal] = useState(false);
+    const [initialized, setInitialized] = useState(false);
+
+    // Local selection state for setup
+    const [selectedSourceConnId, setSelectedSourceConnId] = useState<
+        string | null
+    >(null);
+    const [selectedTargetConnId, setSelectedTargetConnId] = useState<
+        string | null
+    >(null);
+    const [selectedSourceTables, setSelectedSourceTables] = useState<string[]>(
+        [],
+    );
+    const [selectedTargetTables, setSelectedTargetTables] = useState<string[]>(
+        [],
+    );
+
+    // Initialize from initialData if provided
+    useEffect(() => {
+        if (
+            !initialized &&
+            initialData?.sourceConnection &&
+            initialData?.targetConnection &&
+            initialData?.sourceTable &&
+            initialData?.targetTable
+        ) {
+            // Set context state for the runner
+            setSourceConnection(initialData.sourceConnection.id);
+            setTargetConnection(initialData.targetConnection.id);
+            setSourceTable(initialData.sourceTable.name);
+            setTargetTable(initialData.targetTable.name);
+
+            // Set local UI state
+            setSelectedSourceConnId(initialData.sourceConnection.id);
+            setSelectedTargetConnId(initialData.targetConnection.id);
+            setSelectedSourceTables([initialData.sourceTable.name]);
+            setSelectedTargetTables([initialData.targetTable.name]);
+
+            runComparison(
+                initialData.sourceConnection,
+                initialData.targetConnection,
+                initialData.sourceTable,
+                initialData.targetTable,
+            );
+            setInitialized(true);
+        }
+    }, [
+        initialized,
+        initialData,
+        setSourceConnection,
+        setTargetConnection,
+        setSourceTable,
+        setTargetTable,
+        runComparison,
+    ]);
 
     const getConnection = (id: string | null): Connection | undefined =>
         connections.find((c) => c.id === id);
 
-    const sourceConnection = getConnection(selection.sourceConnectionId);
-    const targetConnection = getConnection(selection.targetConnectionId);
-    const sourceTables = selection.sourceConnectionId
-        ? connectionTables.get(selection.sourceConnectionId) || []
+    const sourceConnection = getConnection(selectedSourceConnId);
+    const targetConnection = getConnection(selectedTargetConnId);
+    const sourceTables = selectedSourceConnId
+        ? connectionTables.get(selectedSourceConnId) || []
         : [];
-    const targetTables = selection.targetConnectionId
-        ? connectionTables.get(selection.targetConnectionId) || []
+    const targetTables = selectedTargetConnId
+        ? connectionTables.get(selectedTargetConnId) || []
         : [];
 
     const canCompare =
-        selection.sourceConnectionId &&
-        selection.sourceTableName &&
-        selection.targetConnectionId &&
-        selection.targetTableName;
+        selectedSourceConnId &&
+        selectedSourceTables.length > 0 &&
+        selectedTargetConnId &&
+        selectedTargetTables.length > 0;
 
     const selectedRowCount =
         selectedRows.size +
@@ -65,26 +127,67 @@ export function DiffWorkspace() {
         ).length;
     const hasSelection = selectedRowCount > 0;
 
+    const currentSourceTable = connectionTables
+        .get(selectedSourceConnId || "")
+        ?.find((t) => t.name === (selectedSourceTables[0] || ""));
+
     const handleCompare = useCallback(async () => {
-        if (!canCompare) return;
+        if (!canCompare || !sourceConnection || !targetConnection) return;
 
-        const srcConn = connections.find(
-            (c) => c.id === selection.sourceConnectionId,
-        );
-        const tgtConn = connections.find(
-            (c) => c.id === selection.targetConnectionId,
-        );
-        const srcTable = connectionTables
-            .get(selection.sourceConnectionId || "")
-            ?.find((t) => t.name === selection.sourceTableName);
-        const tgtTable = connectionTables
-            .get(selection.targetConnectionId || "")
-            ?.find((t) => t.name === selection.targetTableName);
-
-        if (srcConn && tgtConn && srcTable && tgtTable) {
-            await runComparison(srcConn, tgtConn, srcTable, tgtTable);
+        // Auto-match tables if multiple sources
+        if (
+            selectedSourceTables.length === 1 &&
+            selectedTargetTables.length === 1
+        ) {
+            // Explicit 1-to-1
+            const srcTable = sourceTables.find(
+                (t) => t.name === selectedSourceTables[0],
+            );
+            const tgtTable = targetTables.find(
+                (t) => t.name === selectedTargetTables[0],
+            );
+            if (srcTable && tgtTable) {
+                openDiffTab(
+                    sourceConnection,
+                    targetConnection,
+                    srcTable,
+                    tgtTable,
+                );
+            }
+        } else {
+            // Batch by name
+            const tgtTableMap = new Set(selectedTargetTables);
+            for (const srcName of selectedSourceTables) {
+                if (tgtTableMap.has(srcName)) {
+                    const srcTable = sourceTables.find(
+                        (t) => t.name === srcName,
+                    );
+                    const tgtTable = targetTables.find(
+                        (t) => t.name === srcName,
+                    );
+                    if (srcTable && tgtTable) {
+                        openDiffTab(
+                            sourceConnection,
+                            targetConnection,
+                            srcTable,
+                            tgtTable,
+                        );
+                    }
+                }
+                // If no match found by name, skip or maybe warn?
+                // For now silent skip for unmatched
+            }
         }
-    }, [canCompare, selection, runComparison, connections, connectionTables]);
+    }, [
+        canCompare,
+        sourceConnection,
+        targetConnection,
+        selectedSourceTables,
+        selectedTargetTables,
+        sourceTables,
+        targetTables,
+        openDiffTab,
+    ]);
 
     // Close modal and refresh after successful merge
     useEffect(() => {
@@ -98,16 +201,62 @@ export function DiffWorkspace() {
         }
     }, [mergeSuccess, showMergeModal, clearMergeState, handleCompare]);
 
+    // Track previous ignored columns to trigger auto-recompare
+    const prevIgnoredColumnsRef = useRef(selection.ignoredColumns);
+
+    // Auto-recompare when ignored columns change
+    useEffect(() => {
+        if (prevIgnoredColumnsRef.current !== selection.ignoredColumns) {
+            prevIgnoredColumnsRef.current = selection.ignoredColumns;
+
+            if (
+                !isComparing &&
+                diffResult &&
+                sourceConnection &&
+                targetConnection &&
+                selection.sourceTableName &&
+                selection.targetTableName
+            ) {
+                const srcTable = sourceTables.find(
+                    (t) => t.name === selection.sourceTableName,
+                );
+                const tgtTable = targetTables.find(
+                    (t) => t.name === selection.targetTableName,
+                );
+
+                if (srcTable && tgtTable) {
+                    runComparison(
+                        sourceConnection,
+                        targetConnection,
+                        srcTable,
+                        tgtTable,
+                    );
+                }
+            }
+        }
+    }, [
+        selection.ignoredColumns,
+        selection.sourceTableName,
+        selection.targetTableName,
+        isComparing,
+        diffResult,
+        sourceConnection,
+        targetConnection,
+        sourceTables,
+        targetTables,
+        runComparison,
+    ]);
+
     const handleConnectAndSelect = async (
         connection: Connection,
         side: "source" | "target",
     ) => {
         await connectTo(connection);
         if (side === "source") {
-            setSourceConnection(connection.id);
+            setSelectedSourceConnId(connection.id);
             setSourceDropdownOpen(false);
         } else {
-            setTargetConnection(connection.id);
+            setSelectedTargetConnId(connection.id);
             setTargetDropdownOpen(false);
         }
     };
@@ -119,10 +268,13 @@ export function DiffWorkspace() {
     const handleConfirmMerge = async () => {
         if (!targetConnection) return;
         await executeMerge(targetConnection);
-        // Note: mergeSuccess/mergeError state will be set by executeMerge
-        // The modal will stay open to show success/error message
-        // We'll close it after a delay only on success (via effect or callback)
     };
+
+    // If we have initial data (it's a result tab) and we have a result, we might want to hide the selectors?
+    // For now, let's keep them visible so user can adjust.
+    // But specific requirement "Auto-create tabs" implies they are separate things.
+    // If this is a separate tab, we probably don't need to change selection there?
+    // Actually, allowing change is fine, it just stays in this tab.
 
     return (
         <div className="h-full flex flex-col p-6">
@@ -137,15 +289,26 @@ export function DiffWorkspace() {
                     onConnectionClick={(conn) => {
                         const status = connectionStatuses.get(conn.id);
                         if (status?.status === "connected") {
-                            setSourceConnection(conn.id);
+                            setSelectedSourceConnId(conn.id);
                             setSourceDropdownOpen(false);
                         } else {
                             handleConnectAndSelect(conn, "source");
                         }
                     }}
                     tables={sourceTables}
-                    selectedTableName={selection.sourceTableName}
-                    onTableSelect={setSourceTable}
+                    selectedTableNames={selectedSourceTables}
+                    onTableSelect={(names) => {
+                        setSelectedSourceTables(names);
+                        // Auto-select matching tables in target if target connection selected
+                        if (targetConnection && targetTables.length > 0) {
+                            const matchingTargets = names.filter((n) =>
+                                targetTables.some((t) => t.name === n),
+                            );
+                            if (matchingTargets.length > 0) {
+                                setSelectedTargetTables(matchingTargets);
+                            }
+                        }
+                    }}
                     isOpen={sourceDropdownOpen}
                     onToggle={() => setSourceDropdownOpen(!sourceDropdownOpen)}
                 />
@@ -166,36 +329,45 @@ export function DiffWorkspace() {
                     onConnectionClick={(conn) => {
                         const status = connectionStatuses.get(conn.id);
                         if (status?.status === "connected") {
-                            setTargetConnection(conn.id);
+                            setSelectedTargetConnId(conn.id);
                             setTargetDropdownOpen(false);
                         } else {
                             handleConnectAndSelect(conn, "target");
                         }
                     }}
                     tables={targetTables}
-                    selectedTableName={selection.targetTableName}
-                    onTableSelect={setTargetTable}
+                    selectedTableNames={selectedTargetTables}
+                    onTableSelect={setSelectedTargetTables}
                     isOpen={targetDropdownOpen}
                     onToggle={() => setTargetDropdownOpen(!targetDropdownOpen)}
                 />
 
                 {/* Compare Button */}
                 <div className="flex flex-col gap-2 pt-6">
-                    <button
-                        type="button"
-                        onClick={handleCompare}
-                        disabled={!canCompare || isComparing}
-                        className="px-6 py-3 bg-accent text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent-hover transition-colors flex items-center gap-2"
-                    >
-                        {isComparing ? (
-                            <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                Comparing...
-                            </>
-                        ) : (
-                            "Compare"
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={handleCompare}
+                            disabled={!canCompare || isComparing}
+                            className="flex-1 px-6 py-3 bg-accent text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent-hover transition-colors flex items-center justify-center gap-2"
+                        >
+                            {isComparing ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Comparing...
+                                </>
+                            ) : (
+                                "Compare"
+                            )}
+                        </button>
+                        {currentSourceTable && (
+                            <ColumnIgnorePanel
+                                columns={currentSourceTable.columns}
+                                ignoredColumns={selection.ignoredColumns}
+                                onToggleColumn={toggleIgnoredColumn}
+                            />
                         )}
-                    </button>
+                    </div>
 
                     {diffResult && hasSelection && (
                         <button
@@ -228,7 +400,34 @@ export function DiffWorkspace() {
 
             {/* Results or Empty State */}
             {diffResult ? (
-                <DiffResultsGrid result={diffResult} />
+                <DiffResultsGrid
+                    result={diffResult}
+                    onRecompare={(newLimit?: number) => {
+                        // Re-run comparison with new limit if provided
+                        if (
+                            sourceConnection &&
+                            targetConnection &&
+                            selection.sourceTableName && // Use selection from context as we are in Result Mode
+                            selection.targetTableName
+                        ) {
+                            const srcTable = sourceTables.find(
+                                (t) => t.name === selection.sourceTableName,
+                            );
+                            const tgtTable = targetTables.find(
+                                (t) => t.name === selection.targetTableName,
+                            );
+                            if (srcTable && tgtTable) {
+                                runComparison(
+                                    sourceConnection,
+                                    targetConnection,
+                                    srcTable,
+                                    tgtTable,
+                                    newLimit,
+                                );
+                            }
+                        }
+                    }}
+                />
             ) : (
                 <div className="flex-1 flex flex-col items-center justify-center bg-surface rounded-xl border border-border">
                     <div className="w-20 h-20 rounded-full bg-surface-elevated flex items-center justify-center mb-4">
@@ -265,5 +464,13 @@ export function DiffWorkspace() {
                 />
             )}
         </div>
+    );
+}
+
+export function DiffWorkspace(props: DiffWorkspaceProps) {
+    return (
+        <DiffProvider>
+            <DiffView {...props} />
+        </DiffProvider>
     );
 }

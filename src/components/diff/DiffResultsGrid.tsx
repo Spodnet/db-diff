@@ -8,11 +8,12 @@ import { SideBySideView } from "./views/SideBySideView";
 
 interface DiffResultsGridProps {
     result: TableDiffResult;
+    onRecompare: (newLimit?: number) => void;
 }
 
 type ViewMode = "inline" | "side-by-side";
 
-export function DiffResultsGrid({ result }: DiffResultsGridProps) {
+export function DiffResultsGrid({ result, onRecompare }: DiffResultsGridProps) {
     const [viewMode, setViewMode] = useState<ViewMode>("side-by-side");
     // FilterStatus includes DiffStatus + "newRow" pseudo-status
     type FilterStatus = DiffStatus | "newRow";
@@ -28,6 +29,12 @@ export function DiffResultsGrid({ result }: DiffResultsGridProps) {
         mergeCell,
         insertAsNewRows,
         toggleInsertAsNew,
+        rowLimit,
+        totalSourceRows,
+        totalTargetRows,
+        setRowLimit,
+        loadAllRows,
+        toggleIgnoredColumn,
     } = useDiff();
 
     const {
@@ -184,6 +191,23 @@ export function DiffResultsGrid({ result }: DiffResultsGridProps) {
         return String(value);
     };
 
+    // Load more: increase limit by 500 and recompare
+    const handleLoadMore = () => {
+        const newLimit = rowLimit + 500;
+        setRowLimit(newLimit);
+        onRecompare(newLimit);
+    };
+
+    // Load all rows
+    const handleLoadAll = () => {
+        const newLimit = 1000000;
+        loadAllRows();
+        onRecompare(newLimit);
+    };
+
+    // Calculate loaded row count (unique rows loaded in current diff)
+    const loadedRowCount = rows.length;
+
     return (
         <div className="flex-1 flex flex-col bg-surface rounded-xl border border-border overflow-hidden">
             <DiffStats
@@ -196,6 +220,12 @@ export function DiffResultsGrid({ result }: DiffResultsGridProps) {
                 visibleStatuses={visibleStatuses}
                 onToggleStatus={toggleStatus}
                 insertAsNewCount={insertAsNewCount}
+                rowLimit={rowLimit}
+                totalSourceRows={totalSourceRows}
+                totalTargetRows={totalTargetRows}
+                loadedRowCount={loadedRowCount}
+                onLoadMore={handleLoadMore}
+                onLoadAll={handleLoadAll}
             />
 
             {/* Results */}
@@ -219,6 +249,7 @@ export function DiffResultsGrid({ result }: DiffResultsGridProps) {
                         onMergeCell={mergeCell}
                         insertAsNewRows={insertAsNewRows}
                         onToggleInsertAsNew={toggleInsertAsNew}
+                        onToggleIgnoredColumn={toggleIgnoredColumn}
                     />
                 ) : (
                     <InlineView
@@ -233,6 +264,7 @@ export function DiffResultsGrid({ result }: DiffResultsGridProps) {
                         onToggleSelection={toggleRowSelection}
                         onSelectAll={handleSelectAll}
                         allSelected={allChangedRowsSelected}
+                        onToggleIgnoredColumn={toggleIgnoredColumn}
                     />
                 )}
 

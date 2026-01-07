@@ -27,6 +27,12 @@ interface DiffContextType {
     diffResult: TableDiffResult | null;
     isComparing: boolean;
     error: string | null;
+    // Row limit controls
+    rowLimit: number;
+    totalSourceRows: number | null;
+    totalTargetRows: number | null;
+    setRowLimit: (limit: number) => void;
+    loadAllRows: () => void;
     // Merge state
     selectedRows: Set<string>;
     mergedCells: Map<string, Set<string>>;
@@ -44,6 +50,7 @@ interface DiffContextType {
         targetConnection: Connection,
         sourceTable: TableInfo,
         targetTable: TableInfo,
+        limit?: number,
     ) => Promise<void>;
     clearResult: () => void;
     // Merge actions
@@ -56,6 +63,8 @@ interface DiffContextType {
     // Insert as new
     insertAsNewRows: Set<string>;
     toggleInsertAsNew: (primaryKey: string) => void;
+    // Column actions
+    toggleIgnoredColumn: (columnName: string) => void;
     // FK Cascade
     fkCascadeChain: FkCascade[];
     addFkCascade: (parentPath: number[], cascade: FkCascade) => void;
@@ -71,10 +80,16 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
         sourceTableName: null,
         targetConnectionId: null,
         targetTableName: null,
+        ignoredColumns: [],
     });
     const [diffResult, setDiffResult] = useState<TableDiffResult | null>(null);
     const [isComparing, setIsComparing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Row limit state
+    const [rowLimit, setRowLimitState] = useState(500);
+    const [totalSourceRows, setTotalSourceRows] = useState<number | null>(null);
+    const [totalTargetRows, setTotalTargetRows] = useState<number | null>(null);
 
     // Merge state
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -132,6 +147,7 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
         targetConnection: Connection,
         sourceTable: TableInfo,
         targetTable: TableInfo,
+        limit?: number,
     ) => {
         setIsComparing(true);
         setError(null);
@@ -140,17 +156,19 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
         setMergeSuccess(false);
         setMergeError(null);
 
+        const effectiveLimit = limit ?? rowLimit;
+
         try {
             const pkColumn =
                 sourceTable.columns.find((c) => c.primaryKey)?.name || "id";
 
             const sourceRes = await fetch(
-                `/api/database/${sourceConnection.id}/tables/${sourceTable.name}/data?type=${sourceConnection.type}`,
+                `/api/database/${sourceConnection.id}/tables/${sourceTable.name}/data?type=${sourceConnection.type}&limit=${effectiveLimit}`,
             );
             const sourceData = await sourceRes.json();
 
             const targetRes = await fetch(
-                `/api/database/${targetConnection.id}/tables/${targetTable.name}/data?type=${targetConnection.type}`,
+                `/api/database/${targetConnection.id}/tables/${targetTable.name}/data?type=${targetConnection.type}&limit=${effectiveLimit}`,
             );
             const targetData = await targetRes.json();
 
@@ -162,13 +180,22 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
                 throw new Error(errorMsg);
             }
 
+            // Store total counts
+            setTotalSourceRows(sourceData.total ?? null);
+            setTotalTargetRows(targetData.total ?? null);
+
+            // Filter out ignored columns
+            const effectiveColumns = sourceTable.columns
+                .map((c) => c.name)
+                .filter((name) => !selection.ignoredColumns.includes(name));
+
             const result = computeDiff(
                 sourceConnection.name,
                 targetConnection.name,
                 targetConnection.type,
                 sourceTable.name,
                 pkColumn,
-                sourceTable.columns.map((c) => c.name),
+                effectiveColumns,
                 sourceData.rows,
                 targetData.rows,
             );
@@ -187,6 +214,34 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
         setSelectedRows(new Set());
         setMergedCells(new Map());
         setInsertAsNewRows(new Set());
+        setTotalSourceRows(null);
+        setTotalTargetRows(null);
+    };
+
+    const setRowLimit = (limit: number) => {
+        setRowLimitState(limit);
+    };
+
+    const loadAllRows = () => {
+        // Set a very high limit to effectively load all rows
+        setRowLimitState(1000000);
+    };
+
+    const toggleIgnoredColumn = (columnName: string) => {
+        setSelection((prev) => {
+            const ignored = new Set(prev.ignoredColumns);
+            if (ignored.has(columnName)) {
+                ignored.delete(columnName);
+            } else {
+                ignored.add(columnName);
+            }
+            return {
+                ...prev,
+                ignoredColumns: Array.from(ignored),
+            };
+        });
+        // We rely on the consumer to trigger a re-run if needed, or we could trigger it here if we had access to runComparison args.
+        // But preventing data disappearance is key.
     };
 
     // Merge actions
@@ -421,6 +476,11 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
                 diffResult,
                 isComparing,
                 error,
+                rowLimit,
+                totalSourceRows,
+                totalTargetRows,
+                setRowLimit,
+                loadAllRows,
                 selectedRows,
                 mergedCells,
                 mergeOperations,
@@ -441,6 +501,7 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
                 mergeCell,
                 insertAsNewRows,
                 toggleInsertAsNew,
+                toggleIgnoredColumn,
                 fkCascadeChain,
                 addFkCascade,
                 removeFkCascade,

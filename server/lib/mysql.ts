@@ -2,9 +2,6 @@ import mysql from "mysql2/promise";
 import type { ColumnInfo, TableInfo } from "../../src/lib/types";
 import { closeTunnel, createTunnel, type SSHConfig } from "./ssh-tunnel";
 
-// Store active MySQL connections
-const connections = new Map<string, mysql.Connection>();
-
 interface MySQLConfig {
     host: string;
     port: number;
@@ -12,6 +9,98 @@ interface MySQLConfig {
     user: string;
     password: string;
     ssh?: SSHConfig;
+}
+
+// Store active MySQL connections with their configs for reconnection
+interface StoredConnection {
+    connection: mysql.Connection;
+    config: MySQLConfig;
+    tunnelPort?: number;
+}
+
+const connections = new Map<string, StoredConnection>();
+
+// Check if a connection is still alive
+async function isConnectionAlive(conn: mysql.Connection): Promise<boolean> {
+    try {
+        await conn.ping();
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+// Ensure connection is alive, reconnect if needed
+async function ensureConnection(
+    connectionId: string,
+): Promise<mysql.Connection> {
+    const stored = connections.get(connectionId);
+    if (!stored) {
+        throw new Error("Connection not found");
+    }
+
+    // Check if connection is alive
+    if (await isConnectionAlive(stored.connection)) {
+        return stored.connection;
+    }
+
+    // Connection is dead, attempt reconnect
+    console.log(`Connection ${connectionId} is dead, attempting reconnect...`);
+
+    try {
+        // Clean up old connection
+        try {
+            await stored.connection.end();
+        } catch {
+            // Ignore cleanup errors
+        }
+
+        let connectHost = stored.config.host;
+        let connectPort = stored.config.port;
+
+        // Recreate SSH tunnel if needed
+        if (stored.config.ssh?.enabled) {
+            await closeTunnel(connectionId);
+            const tunnelResult = await createTunnel(
+                connectionId,
+                stored.config.ssh,
+                stored.config.host,
+                stored.config.port,
+            );
+
+            if (!tunnelResult.success || !tunnelResult.localPort) {
+                throw new Error(
+                    `SSH tunnel reconnect failed: ${tunnelResult.error || "Unknown error"}`,
+                );
+            }
+
+            connectHost = "127.0.0.1";
+            connectPort = tunnelResult.localPort;
+        }
+
+        // Reconnect
+        const newConnection = await mysql.createConnection({
+            host: connectHost,
+            port: connectPort,
+            database: stored.config.database,
+            user: stored.config.user,
+            password: stored.config.password,
+        });
+
+        // Update stored connection
+        stored.connection = newConnection;
+        stored.tunnelPort = connectPort;
+        console.log(`Connection ${connectionId} reconnected successfully`);
+
+        return newConnection;
+    } catch (error) {
+        // Reconnect failed, remove from map
+        connections.delete(connectionId);
+        await closeTunnel(connectionId);
+        throw new Error(
+            `Reconnection failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+    }
 }
 
 export async function connectMySQL(
@@ -56,7 +145,11 @@ export async function connectMySQL(
             password: config.password,
         });
 
-        connections.set(connectionId, connection);
+        connections.set(connectionId, {
+            connection,
+            config,
+            tunnelPort: connectPort,
+        });
         return { success: true };
     } catch (error) {
         // Clean up tunnel if connection failed
@@ -69,9 +162,13 @@ export async function connectMySQL(
 }
 
 export async function disconnectMySQL(connectionId: string): Promise<void> {
-    const connection = connections.get(connectionId);
-    if (connection) {
-        await connection.end();
+    const stored = connections.get(connectionId);
+    if (stored) {
+        try {
+            await stored.connection.end();
+        } catch {
+            // Ignore cleanup errors
+        }
         connections.delete(connectionId);
     }
     // Also close any SSH tunnel
@@ -137,10 +234,7 @@ export async function testMySQLConnection(config: MySQLConfig): Promise<{
 export async function getMySQLTables(
     connectionId: string,
 ): Promise<TableInfo[]> {
-    const connection = connections.get(connectionId);
-    if (!connection) {
-        throw new Error("Connection not found");
-    }
+    const connection = await ensureConnection(connectionId);
 
     const [tables] =
         await connection.execute<mysql.RowDataPacket[]>("SHOW TABLES");
@@ -159,13 +253,15 @@ export async function getMySQLTables(
             `DESCRIBE \`${tableName}\``,
         );
 
-        const columns: ColumnInfo[] = columnsResult.map((col) => ({
-            name: col.Field,
-            type: col.Type,
-            nullable: col.Null === "YES",
-            primaryKey: col.Key === "PRI",
-            defaultValue: col.Default ?? undefined,
-        }));
+        const columns: ColumnInfo[] = columnsResult.map(
+            (col: mysql.RowDataPacket) => ({
+                name: col.Field,
+                type: col.Type,
+                nullable: col.Null === "YES",
+                primaryKey: col.Key === "PRI",
+                defaultValue: col.Default ?? undefined,
+            }),
+        );
 
         tableInfos.push({
             name: tableName,
@@ -183,10 +279,7 @@ export async function getMySQLTableData(
     limit = 100,
     offset = 0,
 ): Promise<{ rows: Record<string, unknown>[]; total: number }> {
-    const connection = connections.get(connectionId);
-    if (!connection) {
-        throw new Error("Connection not found");
-    }
+    const connection = await ensureConnection(connectionId);
 
     const [countResult] = await connection.execute<mysql.RowDataPacket[]>(
         `SELECT COUNT(*) as count FROM \`${tableName}\``,
@@ -207,17 +300,14 @@ export async function getMySQLTableData(
 export function getConnection(
     connectionId: string,
 ): mysql.Connection | undefined {
-    return connections.get(connectionId);
+    return connections.get(connectionId)?.connection;
 }
 
 export async function executeMySQLStatements(
     connectionId: string,
     statements: string[],
 ): Promise<{ success: boolean; error?: string }> {
-    const connection = connections.get(connectionId);
-    if (!connection) {
-        throw new Error("Connection not found");
-    }
+    const connection = await ensureConnection(connectionId);
 
     try {
         await connection.beginTransaction();
@@ -260,10 +350,7 @@ export async function executeMySQLWithCascade(
     error?: string;
     newIdMap?: Record<string, number>;
 }> {
-    const connection = connections.get(connectionId);
-    if (!connection) {
-        throw new Error("Connection not found");
-    }
+    const connection = await ensureConnection(connectionId);
 
     const newIdMap: Record<string, number> = {};
 

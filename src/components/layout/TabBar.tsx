@@ -35,7 +35,7 @@ export function TabBar() {
                             borderTopColor: isActive
                                 ? tab.type === "diff"
                                     ? "var(--color-accent)"
-                                    : tab.data?.connection.color ||
+                                    : tab.data?.connection?.color ||
                                       "var(--color-accent)"
                                 : "transparent",
                         }}
@@ -50,7 +50,7 @@ export function TabBar() {
                                 className="w-4 h-4"
                                 style={{
                                     color:
-                                        tab.data?.connection.color ||
+                                        tab.data?.connection?.color ||
                                         "var(--color-text-muted)",
                                 }}
                             />

@@ -17,6 +17,7 @@ export function SideBySideView({
     onMergeCell,
     insertAsNewRows,
     onToggleInsertAsNew,
+    onToggleIgnoredColumn,
 }: ViewProps) {
     const [columnWidths, setColumnWidths] = useState<Record<string, number>>(
         {},
@@ -31,7 +32,8 @@ export function SideBySideView({
     const [contextMenu, setContextMenu] = useState<{
         x: number;
         y: number;
-        primaryKey: string;
+        type: "row" | "column";
+        id: string; // primaryKey or columnName
     } | null>(null);
 
     // Initialize column widths
@@ -111,7 +113,22 @@ export function SideBySideView({
 
     const handleContextMenu = (e: React.MouseEvent, primaryKey: string) => {
         e.preventDefault();
-        setContextMenu({ x: e.clientX, y: e.clientY, primaryKey });
+        setContextMenu({
+            x: e.clientX,
+            y: e.clientY,
+            type: "row",
+            id: primaryKey,
+        });
+    };
+
+    const handleColumnContextMenu = (e: React.MouseEvent, column: string) => {
+        e.preventDefault();
+        setContextMenu({
+            x: e.clientX,
+            y: e.clientY,
+            type: "column",
+            id: column,
+        });
     };
 
     const closeContextMenu = () => setContextMenu(null);
@@ -145,6 +162,9 @@ export function SideBySideView({
                                             width: columnWidths[col],
                                             minWidth: columnWidths[col],
                                         }}
+                                        onContextMenu={(e) =>
+                                            handleColumnContextMenu(e, col)
+                                        }
                                     >
                                         <div className="flex items-center gap-1 truncate">
                                             <span
@@ -345,6 +365,9 @@ export function SideBySideView({
                                             width: columnWidths[col],
                                             minWidth: columnWidths[col],
                                         }}
+                                        onContextMenu={(e) =>
+                                            handleColumnContextMenu(e, col)
+                                        }
                                     >
                                         <div className="flex items-center gap-1 truncate">
                                             <span
@@ -468,26 +491,40 @@ export function SideBySideView({
                         className="fixed z-50 bg-surface-elevated border border-border rounded-lg shadow-xl py-1 min-w-[160px]"
                         style={{ left: contextMenu.x, top: contextMenu.y }}
                     >
-                        <button
-                            type="button"
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-surface flex items-center gap-2"
-                            onClick={() => {
-                                onToggleInsertAsNew?.(contextMenu.primaryKey);
-                                closeContextMenu();
-                            }}
-                        >
-                            {insertAsNewRows?.has(contextMenu.primaryKey) ? (
-                                <>
-                                    <span>↩️</span>
-                                    <span>Unmark as New Row</span>
-                                </>
-                            ) : (
-                                <>
-                                    <span>📥</span>
-                                    <span>Mark as New Row</span>
-                                </>
-                            )}
-                        </button>
+                        {contextMenu.type === "row" ? (
+                            <button
+                                type="button"
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-surface flex items-center gap-2"
+                                onClick={() => {
+                                    onToggleInsertAsNew?.(contextMenu.id);
+                                    closeContextMenu();
+                                }}
+                            >
+                                {insertAsNewRows?.has(contextMenu.id) ? (
+                                    <>
+                                        <span>↩️</span>
+                                        <span>Unmark as New Row</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span>📥</span>
+                                        <span>Mark as New Row</span>
+                                    </>
+                                )}
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-surface flex items-center gap-2 text-text-secondary hover:text-text-primary"
+                                onClick={() => {
+                                    onToggleIgnoredColumn?.(contextMenu.id);
+                                    closeContextMenu();
+                                }}
+                            >
+                                <span>🚫</span>
+                                <span>Ignore Column '{contextMenu.id}'</span>
+                            </button>
+                        )}
                     </div>
                 </>
             )}

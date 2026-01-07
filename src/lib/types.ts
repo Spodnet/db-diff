@@ -107,4 +107,5 @@ export interface DiffSelection {
     sourceTableName: string | null;
     targetConnectionId: string | null;
     targetTableName: string | null;
+    ignoredColumns: string[];
 }

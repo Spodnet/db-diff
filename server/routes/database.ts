@@ -45,7 +45,8 @@ databaseRouter.get(
     "/:connectionId/tables/:tableName/data",
     async (req, res) => {
         const { connectionId, tableName } = req.params;
-        const { type, limit = "100", offset = "0" } = req.query;
+        const defaultLimit = Number(process.env.DEFAULT_ROW_LIMIT) || 500;
+        const { type, limit = String(defaultLimit), offset = "0" } = req.query;
 
         try {
             if (type === "sqlite") {

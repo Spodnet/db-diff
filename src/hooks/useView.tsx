@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from "react";
-import type { Connection } from "../lib/types";
+import type { Connection, TableInfo } from "../lib/types";
 
 export type ViewType = "diff" | "table";
 
@@ -8,8 +8,15 @@ export interface Tab {
     type: ViewType;
     label: string;
     data?: {
-        connection: Connection;
-        tableName: string;
+        // Shared
+        connection?: Connection;
+        // Table View
+        tableName?: string;
+        // Diff View
+        sourceConnection?: Connection;
+        targetConnection?: Connection;
+        sourceTable?: TableInfo;
+        targetTable?: TableInfo;
     };
 }
 
@@ -18,6 +25,12 @@ interface ViewContextType {
     activeTabId: string;
     activeTab: Tab;
     openTableTab: (connection: Connection, tableName: string) => void;
+    openDiffTab: (
+        sourceConnection: Connection,
+        targetConnection: Connection,
+        sourceTable: TableInfo,
+        targetTable: TableInfo,
+    ) => void;
     closeTab: (tabId: string) => void;
     activateTab: (tabId: string) => void;
 }
@@ -65,6 +78,36 @@ export function ViewProvider({ children }: { children: React.ReactNode }) {
         setActiveTabId(tabId);
     };
 
+    const openDiffTab = (
+        sourceConnection: Connection,
+        targetConnection: Connection,
+        sourceTable: TableInfo,
+        targetTable: TableInfo,
+    ) => {
+        const tabId = `diff-${sourceConnection.id}-${sourceTable.name}-${targetConnection.id}-${targetTable.name}`;
+
+        const existingTab = tabs.find((t) => t.id === tabId);
+        if (existingTab) {
+            setActiveTabId(tabId);
+            return;
+        }
+
+        const newTab: Tab = {
+            id: tabId,
+            type: "diff",
+            label: `${sourceTable.name}`, // Label as table name
+            data: {
+                sourceConnection,
+                targetConnection,
+                sourceTable,
+                targetTable,
+            },
+        };
+
+        setTabs((prev) => [...prev, newTab]);
+        setActiveTabId(tabId);
+    };
+
     const closeTab = (tabId: string) => {
         if (tabId === "diff") return; // Cannot close diff tab
 
@@ -88,6 +131,7 @@ export function ViewProvider({ children }: { children: React.ReactNode }) {
                 activeTabId,
                 activeTab,
                 openTableTab,
+                openDiffTab,
                 closeTab,
                 activateTab,
             }}

@@ -1,4 +1,3 @@
-import { Minus, Plus, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useDiff } from "../../hooks/useDiff";
 import type { DiffStatus, RowDiff, TableDiffResult } from "../../lib/types";
@@ -88,45 +87,6 @@ export function DiffResultsGrid({ result, onRecompare }: DiffResultsGridProps) {
         }
     };
 
-    const getStatusIcon = (status: DiffStatus) => {
-        switch (status) {
-            case "added":
-                return <Plus className="w-3 h-3" />;
-            case "deleted":
-                return <Minus className="w-3 h-3" />;
-            case "modified":
-                return <RefreshCw className="w-3 h-3" />;
-            default:
-                return null;
-        }
-    };
-
-    const getStatusBgClass = (status: DiffStatus) => {
-        switch (status) {
-            case "added":
-                return "bg-added-bg";
-            case "deleted":
-                return "bg-deleted-bg";
-            case "modified":
-                return "bg-modified-bg";
-            default:
-                return "";
-        }
-    };
-
-    const getStatusTextClass = (status: DiffStatus) => {
-        switch (status) {
-            case "added":
-                return "text-added";
-            case "deleted":
-                return "text-deleted";
-            case "modified":
-                return "text-modified";
-            default:
-                return "text-text-secondary";
-        }
-    };
-
     const getCellValue = (
         row: RowDiff,
         column: string,
@@ -188,9 +148,6 @@ export function DiffResultsGrid({ result, onRecompare }: DiffResultsGridProps) {
                         sourceConnection={sourceConnection}
                         targetConnection={targetConnection}
                         getCellValue={getCellValue}
-                        getStatusBgClass={getStatusBgClass}
-                        getStatusTextClass={getStatusTextClass}
-                        getStatusIcon={getStatusIcon}
                         selectedRows={selectedRows}
                         onToggleSelection={toggleRowSelection}
                         onSelectAll={handleSelectAll}
@@ -207,9 +164,6 @@ export function DiffResultsGrid({ result, onRecompare }: DiffResultsGridProps) {
                         columns={columns}
                         primaryKeyColumn={primaryKeyColumn}
                         getCellValue={getCellValue}
-                        getStatusBgClass={getStatusBgClass}
-                        getStatusTextClass={getStatusTextClass}
-                        getStatusIcon={getStatusIcon}
                         selectedRows={selectedRows}
                         onToggleSelection={toggleRowSelection}
                         onSelectAll={handleSelectAll}

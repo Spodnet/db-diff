@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useColumnResizing } from "../../../hooks/useColumnResizing";
+import { getStatusBgClass } from "../statusUtils";
 import type { ViewProps } from "../types";
 
 export function SideBySideView({
@@ -9,7 +10,6 @@ export function SideBySideView({
     sourceConnection,
     targetConnection,
     getCellValue,
-    getStatusBgClass,
     selectedRows,
     onToggleSelection,
     onSelectAll,

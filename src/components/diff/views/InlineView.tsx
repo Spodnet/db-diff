@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { getStatusBgClass } from "../statusUtils";
 import type { ViewProps } from "../types";
 
 export function InlineView({
@@ -6,7 +7,6 @@ export function InlineView({
     columns,
     primaryKeyColumn,
     getCellValue,
-    getStatusBgClass,
     selectedRows,
     onToggleSelection,
     onSelectAll,

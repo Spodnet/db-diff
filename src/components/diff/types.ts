@@ -1,4 +1,4 @@
-import type { DiffStatus, RowDiff } from "../../lib/types";
+import type { RowDiff } from "../../lib/types";
 
 export interface ViewProps {
     rows: RowDiff[];
@@ -9,9 +9,6 @@ export interface ViewProps {
         col: string,
         side: "source" | "target",
     ) => string;
-    getStatusBgClass: (status: DiffStatus) => string;
-    getStatusTextClass: (status: DiffStatus) => string;
-    getStatusIcon: (status: DiffStatus) => React.ReactNode;
     sourceConnection?: string;
     targetConnection?: string;
     selectedRows: Set<string>;

@@ -1,7 +1,5 @@
-import { ArrowRight, Database, Loader2, RefreshCw } from "lucide-react";
+import { Database, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { useDiff } from "../../hooks/useDiff";
-import { useView } from "../../hooks/useView";
 import type { Connection } from "../../lib/types";
 
 interface TableDataResponse {
@@ -22,14 +20,6 @@ export function TableDataWorkspace({
     const [data, setData] = useState<TableDataResponse | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    const {
-        setSourceConnection,
-        setSourceTable,
-        setTargetConnection,
-        setTargetTable,
-    } = useDiff();
-    const { activateTab } = useView();
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -56,18 +46,6 @@ export function TableDataWorkspace({
     useEffect(() => {
         fetchData();
     }, [fetchData]); // Fetch when props change
-
-    const handleUseAsSource = () => {
-        setSourceConnection(connection.id);
-        setSourceTable(tableName);
-        activateTab("diff");
-    };
-
-    const handleUseAsTarget = () => {
-        setTargetConnection(connection.id);
-        setTargetTable(tableName);
-        activateTab("diff");
-    };
 
     // Format cell values for display (handle dates, etc.)
     const formatCellValue = (value: unknown): string => {
@@ -121,22 +99,6 @@ export function TableDataWorkspace({
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={handleUseAsSource}
-                        className="px-3 py-1.5 text-xs font-medium text-text-primary bg-surface border border-border rounded-lg hover:bg-surface-elevated hover:border-accent transition-colors flex items-center gap-1.5"
-                    >
-                        Set Source
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleUseAsTarget}
-                        className="px-3 py-1.5 text-xs font-medium text-text-primary bg-surface border border-border rounded-lg hover:bg-surface-elevated hover:border-accent transition-colors flex items-center gap-1.5"
-                    >
-                        Set Target
-                        <ArrowRight className="w-3 h-3" />
-                    </button>
-                    <div className="w-px h-6 bg-border mx-1" />
                     <button
                         type="button"
                         onClick={fetchData}

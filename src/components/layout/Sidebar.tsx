@@ -38,6 +38,7 @@ export function Sidebar() {
         disconnect,
         connectTo,
         fetchTables,
+        tableLoadingStatuses,
     } = useConnections();
 
     const { openTableTab } = useView();
@@ -313,6 +314,15 @@ export function Sidebar() {
                                                         <Plug className="w-3 h-3" />
                                                         Click to connect
                                                     </button>
+                                                ) : tableLoadingStatuses.get(
+                                                      connection.id,
+                                                  ) ? (
+                                                    <div className="flex items-center gap-2 text-xs text-text-muted py-2">
+                                                        <Loader2 className="w-3 h-3 animate-spin text-accent" />
+                                                        <span>
+                                                            Fetching tables...
+                                                        </span>
+                                                    </div>
                                                 ) : tables &&
                                                   tables.length > 0 ? (
                                                     <div className="py-1 space-y-0.5">

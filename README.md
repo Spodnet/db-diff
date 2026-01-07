@@ -2,6 +2,8 @@
 
 **DB-Diff** is a modern, web-based utility designed to visually compare and synchronize data between databases. Built with a focus on usability and developer experience, it allows for easy row-by-row comparison, cell-level difference highlighting, and selective merging of data.
 
+Please note this app was vibe coded with antigravity, the code is not security audited and should only be used in a non-production setting. The code quality is typical of vibe coded output and will be improved over time. It's also missing tests, the agent obviously missed that step despite early instructions saying it should be included.
+
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 ## ✨ Key Features
@@ -14,7 +16,7 @@
   - Selectively merge changes from a source database to a target database.
   - Supports **INSERT**, **UPDATE**, and **DELETE** operations.
   - Granular control: merge entire rows or individual cell modifications.
-  - **Right-click on modified rows** to "Mark as New Row" - inserts as a new record instead of updating.
+  - **Right-click on modified rows** to "Mark as New Row" - inserts as a new record instead of updating, with the abilty cascade the id and duplicate existing linked rows.
 - **Data Explorer**: distinct views to browse and inspect raw table data for any connected database.
 - **Modern Architecture**: Built with **React 19**, **Tailwind CSS v4**, and **Express**.
 

@@ -39,7 +39,7 @@ export function MysqlConnectionForm({
                 username: "",
                 privateKeyPath: "",
             };
-            
+
             updateConfig({
                 ssh: {
                     ...existingSsh,
@@ -271,7 +271,9 @@ export function MysqlConnectionForm({
                                             value={config.ssh?.port ?? 22}
                                             onChange={(e) =>
                                                 updateSshConfig({
-                                                    port: Number(e.target.value),
+                                                    port: Number(
+                                                        e.target.value,
+                                                    ),
                                                 })
                                             }
                                             className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg text-text-primary focus:outline-none focus:border-accent transition-colors"

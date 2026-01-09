@@ -5,6 +5,7 @@ import {
     Loader2,
     Square,
 } from "lucide-react";
+import { useEffect, useRef } from "react";
 import type { Connection, ConnectionStatus, TableInfo } from "../../lib/types";
 
 interface ConnectionSelectorProps {
@@ -39,6 +40,43 @@ export function ConnectionSelector({
     onToggleTable,
     isLoading,
 }: ConnectionSelectorProps) {
+    const connectionRef = useRef<HTMLDivElement>(null);
+    const tableRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (
+                isConnectionOpen &&
+                connectionRef.current &&
+                !connectionRef.current.contains(event.target as Node)
+            ) {
+                onToggleConnection();
+            }
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [isConnectionOpen, onToggleConnection]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (
+                isTableOpen &&
+                tableRef.current &&
+                !tableRef.current.contains(event.target as Node)
+            ) {
+                onToggleTable();
+            }
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [isTableOpen, onToggleTable]);
+
     return (
         <div className="flex-1">
             <span className="block text-xs font-medium text-text-muted mb-1.5 uppercase tracking-wider">
@@ -46,7 +84,7 @@ export function ConnectionSelector({
             </span>
             <div className="space-y-2">
                 {/* Connection Dropdown */}
-                <div className="relative">
+                <div className="relative" ref={connectionRef}>
                     <button
                         type="button"
                         onClick={onToggleConnection}
@@ -105,7 +143,7 @@ export function ConnectionSelector({
                 </div>
                 {/* Table Dropdown */}
                 {selectedConnection && (
-                    <div className="relative">
+                    <div className="relative" ref={tableRef}>
                         <button
                             type="button"
                             onClick={onToggleTable}

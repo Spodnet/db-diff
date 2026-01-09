@@ -12,5 +12,3 @@ export const getStatusBgClass = (status: DiffStatus): string => {
             return "";
     }
 };
-
-

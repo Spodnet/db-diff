@@ -1,11 +1,4 @@
-import {
-    Check,
-    Database,
-    FileText,
-    Loader2,
-    Server,
-    X,
-} from "lucide-react";
+import { Check, Database, FileText, Loader2, Server, X } from "lucide-react";
 import { useState } from "react";
 import { useConnections } from "../../hooks/useConnections";
 import type {

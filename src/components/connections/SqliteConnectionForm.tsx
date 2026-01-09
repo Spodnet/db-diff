@@ -21,7 +21,9 @@ export function SqliteConnectionForm({
                 id="file-path"
                 type="text"
                 value={config.filePath ?? ""}
-                onChange={(e) => onChange({ ...config, filePath: e.target.value })}
+                onChange={(e) =>
+                    onChange({ ...config, filePath: e.target.value })
+                }
                 placeholder="/path/to/database.sqlite"
                 className="w-full px-3 py-2 bg-background border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
             />

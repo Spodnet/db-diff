@@ -1,6 +1,14 @@
-import { Database, Loader2, RefreshCw } from "lucide-react";
+import {
+    ArrowLeft,
+    ArrowRight,
+    Database,
+    Loader2,
+    RefreshCw,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useColumnResizing } from "../../hooks/useColumnResizing";
+import { useConnections } from "../../hooks/useConnections";
+import { useView } from "../../hooks/useView";
 import type { Connection } from "../../lib/types";
 import { formatCellValue } from "../../lib/utils";
 
@@ -25,6 +33,31 @@ export function TableDataWorkspace({
 
     const { columnWidths, setColumnWidths, startResizing, handleAutoResize } =
         useColumnResizing("data-col-id");
+
+    const { connectionTables } = useConnections();
+    const { presetDiff } = useView();
+
+    const handleUseAsSource = () => {
+        const tables = connectionTables.get(connection.id) || [];
+        const tableInfo = tables.find((t) => t.name === tableName);
+        if (tableInfo) {
+            presetDiff({
+                sourceConnection: connection,
+                sourceTable: tableInfo,
+            });
+        }
+    };
+
+    const handleUseAsTarget = () => {
+        const tables = connectionTables.get(connection.id) || [];
+        const tableInfo = tables.find((t) => t.name === tableName);
+        if (tableInfo) {
+            presetDiff({
+                targetConnection: connection,
+                targetTable: tableInfo,
+            });
+        }
+    };
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -83,6 +116,25 @@ export function TableDataWorkspace({
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={handleUseAsSource}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm text-text-secondary hover:text-text-primary hover:bg-surface rounded-lg transition-colors"
+                        title="Use as Source for Comparison"
+                    >
+                        <ArrowRight className="w-4 h-4" />
+                        Use as source
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleUseAsTarget}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm text-text-secondary hover:text-text-primary hover:bg-surface rounded-lg transition-colors"
+                        title="Use as Target for Comparison"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        Use as target
+                    </button>
+                    <div className="w-px h-6 bg-border mx-1" />
                     <button
                         type="button"
                         onClick={fetchData}

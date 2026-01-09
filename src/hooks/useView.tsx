@@ -34,6 +34,7 @@ interface ViewContextType {
     closeTab: (tabId: string) => void;
     activateTab: (tabId: string) => void;
     updateTab: (tabId: string, updates: Partial<Tab>) => void;
+    presetDiff: (data: Partial<Tab["data"]>) => void;
 }
 
 const ViewContext = createContext<ViewContextType | null>(null);
@@ -119,6 +120,42 @@ export function ViewProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const presetDiff = (data: Partial<Tab["data"]>) => {
+        // Find the diff tab (we assume there's always one 'diff' or we use the generic one)
+        // In this app, the default diff tab has id="diff"
+        const diffTabId = "diff";
+
+        setTabs((prev) => {
+            const diffTab = prev.find((t) => t.id === diffTabId);
+            if (!diffTab) {
+                // If closed, recreate it
+                return [
+                    ...prev,
+                    {
+                        ...DIFF_TAB,
+                        data: { ...data },
+                    },
+                ];
+            }
+
+            // Merge with existing data
+            return prev.map((t) => {
+                if (t.id === diffTabId) {
+                    return {
+                        ...t,
+                        data: {
+                            ...t.data,
+                            ...data,
+                        },
+                    };
+                }
+                return t;
+            });
+        });
+
+        setActiveTabId(diffTabId);
+    };
+
     const closeTab = (tabId: string) => {
         const tab = tabs.find((t) => t.id === tabId);
         if (!tab) return;
@@ -149,6 +186,7 @@ export function ViewProvider({ children }: { children: React.ReactNode }) {
                 activeTab,
                 openTableTab,
                 openDiffTab,
+                presetDiff,
                 closeTab,
                 activateTab,
                 updateTab,

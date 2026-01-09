@@ -68,45 +68,6 @@ function DiffView({ initialData }: DiffWorkspaceProps) {
         [],
     );
 
-    // Initialize from initialData if provided
-    useEffect(() => {
-        if (
-            !initialized &&
-            initialData?.sourceConnection &&
-            initialData?.targetConnection &&
-            initialData?.sourceTable &&
-            initialData?.targetTable
-        ) {
-            // Set context state for the runner
-            setSourceConnection(initialData.sourceConnection.id);
-            setTargetConnection(initialData.targetConnection.id);
-            setSourceTable(initialData.sourceTable.name);
-            setTargetTable(initialData.targetTable.name);
-
-            // Set local UI state
-            setSelectedSourceConnId(initialData.sourceConnection.id);
-            setSelectedTargetConnId(initialData.targetConnection.id);
-            setSelectedSourceTables([initialData.sourceTable.name]);
-            setSelectedTargetTables([initialData.targetTable.name]);
-
-            runComparison(
-                initialData.sourceConnection,
-                initialData.targetConnection,
-                initialData.sourceTable,
-                initialData.targetTable,
-            );
-            setInitialized(true);
-        }
-    }, [
-        initialized,
-        initialData,
-        setSourceConnection,
-        setTargetConnection,
-        setSourceTable,
-        setTargetTable,
-        runComparison,
-    ]);
-
     const getConnection = (id: string | null): Connection | undefined =>
         connections.find((c) => c.id === id);
 
@@ -118,6 +79,92 @@ function DiffView({ initialData }: DiffWorkspaceProps) {
     const targetTables = selectedTargetConnId
         ? connectionTables.get(selectedTargetConnId) || []
         : [];
+
+    // Initialize from initialData if provided
+    useEffect(() => {
+        if (initialData) {
+            // Check usage of initialData to see if we need to update state
+            let needsUpdate = false;
+
+            if (
+                initialData.sourceConnection &&
+                initialData.sourceConnection.id !== selectedSourceConnId
+            ) {
+                setSourceConnection(initialData.sourceConnection.id);
+                setSelectedSourceConnId(initialData.sourceConnection.id);
+                // Reset tables when connection changes
+                setSelectedSourceTables([]);
+                setSourceTable(null);
+                needsUpdate = true;
+            }
+
+            if (
+                initialData.targetConnection &&
+                initialData.targetConnection.id !== selectedTargetConnId
+            ) {
+                setTargetConnection(initialData.targetConnection.id);
+                setSelectedTargetConnId(initialData.targetConnection.id);
+                // Reset tables when connection changes
+                setSelectedTargetTables([]);
+                setTargetTable(null);
+                needsUpdate = true;
+            }
+
+            if (
+                initialData.sourceTable &&
+                (!selectedSourceTables.includes(initialData.sourceTable.name) ||
+                    !selection.sourceTableName)
+            ) {
+                setSourceTable(initialData.sourceTable.name);
+                setSelectedSourceTables([initialData.sourceTable.name]);
+                needsUpdate = true;
+            }
+
+            if (
+                initialData.targetTable &&
+                (!selectedTargetTables.includes(initialData.targetTable.name) ||
+                    !selection.targetTableName)
+            ) {
+                setTargetTable(initialData.targetTable.name);
+                setSelectedTargetTables([initialData.targetTable.name]);
+                needsUpdate = true;
+            }
+
+            // Trigger comparison if we have a full set and needed an update
+            if (needsUpdate || !initialized) {
+                const srcConn =
+                    initialData.sourceConnection || sourceConnection;
+                const tgtConn =
+                    initialData.targetConnection || targetConnection;
+                // For tables, we might have just set them in state, but state updates are async.
+                // So we rely on initialData if present, or fallback to current state *if* it wasn't just changed.
+                const srcTable = initialData.sourceTable; // Only auto-run if we have explicit table in initialData
+                const tgtTable = initialData.targetTable;
+
+                if (srcConn && tgtConn && srcTable && tgtTable) {
+                    runComparison(srcConn, tgtConn, srcTable, tgtTable);
+                }
+                setInitialized(true);
+            }
+        }
+    }, [
+        initialData,
+        setSourceConnection,
+        setTargetConnection,
+        setSourceTable,
+        setTargetTable,
+        runComparison,
+        // Add dependencies for current state to allow comparison against new props
+        selectedSourceConnId,
+        selectedTargetConnId,
+        selectedSourceTables,
+        selectedTargetTables,
+        sourceConnection,
+        targetConnection,
+        selection.sourceTableName,
+        selection.targetTableName,
+        initialized,
+    ]);
 
     const canCompare =
         selectedSourceConnId &&

@@ -102,7 +102,7 @@ export function ConnectionSelector({
                         <ChevronDown className="w-4 h-4 text-text-muted" />
                     </button>
                     {isConnectionOpen && (
-                        <div className="absolute z-10 top-full mt-1 w-full bg-surface-elevated border border-border rounded-lg shadow-xl py-1">
+                        <div className="absolute z-50 top-full mt-1 w-full bg-surface-elevated border border-border rounded-lg shadow-xl py-1">
                             {connections.length === 0 ? (
                                 <p className="px-4 py-2 text-sm text-text-muted">
                                     No connections available
@@ -165,7 +165,7 @@ export function ConnectionSelector({
                             <ChevronDown className="w-4 h-4 text-text-muted" />
                         </button>
                         {isTableOpen && (
-                            <div className="absolute z-10 top-full mt-1 w-full bg-surface-elevated border border-border rounded-lg shadow-xl py-1 max-h-[300px] flex flex-col">
+                            <div className="absolute z-50 top-full mt-1 w-full bg-surface-elevated border border-border rounded-lg shadow-xl py-1 max-h-[300px] flex flex-col">
                                 {isLoading ? (
                                     <div className="px-4 py-8 flex flex-col items-center justify-center text-text-muted gap-2">
                                         <Loader2 className="w-5 h-5 animate-spin text-accent" />

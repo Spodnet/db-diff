@@ -3,17 +3,11 @@ import type {
     Connection,
     ConnectionType,
     DiffSelection,
+    MergeOperation,
     RowDiff,
     TableDiffResult,
     TableInfo,
 } from "../lib/types";
-
-interface MergeOperation {
-    type: "insert" | "update" | "delete";
-    primaryKey: string;
-    sql: string;
-    isInsertAsNew?: boolean;
-}
 
 // FK Cascade structure (recursive)
 export interface FkCascade {
@@ -309,63 +303,62 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
 
             if (row.status === "deleted" && isRowSelected) {
                 // Row exists in source but not in target - INSERT into target
-                const values = columns.map((col) =>
-                    formatValue(
-                        row.sourceRow?.[col],
-                        diffResult.targetConnectionType,
-                    ),
-                );
+                const values: Record<string, unknown> = {};
+                for (const col of columns) {
+                    values[col] = row.sourceRow?.[col];
+                }
                 ops.push({
                     type: "insert",
-                    primaryKey: row.primaryKey,
-                    sql: `INSERT INTO ${tableName} (${columns.join(", ")}) VALUES (${values.join(", ")});`,
+                    tableName,
+                    primaryKeyColumn,
+                    primaryKeyValue: row.primaryKey,
+                    columns,
+                    values,
                 });
             } else if (row.status === "added" && isRowSelected) {
                 // Row exists in target but not in source - DELETE from target
                 ops.push({
                     type: "delete",
-                    primaryKey: row.primaryKey,
-                    sql: `DELETE FROM ${tableName} WHERE ${primaryKeyColumn} = ${formatValue(row.primaryKey, diffResult.targetConnectionType)};`,
+                    tableName,
+                    primaryKeyColumn,
+                    primaryKeyValue: row.primaryKey,
                 });
             } else if (row.status === "modified") {
                 // Check if this row should be inserted as a new row
                 if (isInsertAsNew) {
                     // Insert source data as NEW row (without PK, let auto-increment assign)
-                    const nonPkColumns = columns.filter(
-                        (col) => col !== primaryKeyColumn,
-                    );
-                    const values = nonPkColumns.map((col) =>
-                        formatValue(
-                            row.sourceRow?.[col],
-                            diffResult.targetConnectionType,
-                        ),
-                    );
+                    const values: Record<string, unknown> = {};
+                    for (const col of columns) {
+                        if (col !== primaryKeyColumn) {
+                            values[col] = row.sourceRow?.[col];
+                        }
+                    }
                     ops.push({
                         type: "insert",
-                        primaryKey: row.primaryKey,
-                        sql: `INSERT INTO ${tableName} (${nonPkColumns.join(", ")}) VALUES (${values.join(", ")});`,
+                        tableName,
+                        primaryKeyColumn,
+                        primaryKeyValue: row.primaryKey,
+                        columns,
+                        values,
                         isInsertAsNew: true,
                     });
                 } else if (isRowSelected || hasCellMerges) {
                     // Row exists in both but differs - UPDATE target to match source
-                    // If row selected, update ALL modified columns
-                    // If not selected but has cell merges, update ONLY specified columns
-                    const setClauses = row.cellDiffs
-                        .filter((c) => {
-                            if (c.status !== "modified") return false;
-                            if (isRowSelected) return true;
-                            return cellMerges?.has(c.column);
-                        })
-                        .map(
-                            (c) =>
-                                `${c.column} = ${formatValue(c.sourceValue, diffResult.targetConnectionType)}`,
-                        );
+                    const values: Record<string, unknown> = {};
+                    for (const c of row.cellDiffs) {
+                        if (c.status !== "modified") continue;
+                        if (isRowSelected || cellMerges?.has(c.column)) {
+                            values[c.column] = c.sourceValue;
+                        }
+                    }
 
-                    if (setClauses.length > 0) {
+                    if (Object.keys(values).length > 0) {
                         ops.push({
                             type: "update",
-                            primaryKey: row.primaryKey,
-                            sql: `UPDATE ${tableName} SET ${setClauses.join(", ")} WHERE ${primaryKeyColumn} = ${formatValue(row.primaryKey, diffResult.targetConnectionType)};`,
+                            tableName,
+                            primaryKeyColumn,
+                            primaryKeyValue: row.primaryKey,
+                            values,
                         });
                     }
                 }
@@ -383,11 +376,6 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
         setMergeSuccess(false);
 
         try {
-            // Build insertAsNewOps for operations that need ID capture
-            const insertAsNewOps = mergeOperations
-                .filter((op) => op.isInsertAsNew)
-                .map((op) => ({ sql: op.sql, originalPK: op.primaryKey }));
-
             const response = await fetch(
                 `/api/database/${targetConnection.id}/execute`,
                 {
@@ -395,11 +383,7 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         type: targetConnection.type,
-                        statements: mergeOperations.map((op) => op.sql),
-                        insertAsNewOps:
-                            insertAsNewOps.length > 0
-                                ? insertAsNewOps
-                                : undefined,
+                        operations: mergeOperations,
                         fkCascadeChain:
                             fkCascadeChain.length > 0
                                 ? fkCascadeChain
@@ -519,49 +503,7 @@ export function useDiff() {
     return context;
 }
 
-// Format value for SQL
-function formatValue(value: unknown, type: ConnectionType): string {
-    if (value === null || value === undefined) return "NULL";
-    if (typeof value === "number") return String(value);
-    if (typeof value === "boolean") return value ? "1" : "0";
 
-    // Handle Date objects (MySQL returns dates as Date objects)
-    if (value instanceof Date) {
-        if (type === "mysql") {
-            // Format as YYYY-MM-DD HH:MM:SS for MySQL
-            return `'${value.toISOString().slice(0, 19).replace("T", " ")}'`;
-        }
-        return `'${value.toISOString()}'`;
-    }
-
-    // Handle objects (e.g., JSON columns)
-    if (typeof value === "object") {
-        const jsonStr = JSON.stringify(value);
-        return `'${jsonStr.replace(/'/g, "''")}'`;
-    }
-
-    if (typeof value === "string") {
-        // Handle Dates for MySQL
-        if (
-            type === "mysql" &&
-            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)
-        ) {
-            try {
-                const date = new Date(value);
-                if (!Number.isNaN(date.getTime())) {
-                    // Format as YYYY-MM-DD HH:MM:SS
-                    return `'${date.toISOString().slice(0, 19).replace("T", " ")}'`;
-                }
-            } catch (_e) {
-                // ignore invalid dates
-            }
-        }
-        // Escape single quotes for strings
-        return `'${String(value).replace(/'/g, "''")}'`;
-    }
-
-    return `'${String(value).replace(/'/g, "''")}'`;
-}
 
 // Diff algorithm
 function computeDiff(

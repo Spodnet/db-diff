@@ -1,11 +1,14 @@
 import { Router } from "express";
 import {
+    executeMergeOperations as executeMySQLMergeOperations,
     executeMySQLStatements,
     executeMySQLWithCascade,
     getMySQLTableData,
     getMySQLTables,
 } from "../lib/mysql";
+import type { MergeOperation } from "../lib/mergeTypes";
 import {
+    executeMergeOperations as executeSQLiteMergeOperations,
     executeSQLiteStatements,
     executeSQLiteWithCascade,
     getSQLiteTableData,
@@ -80,33 +83,11 @@ databaseRouter.get(
     },
 );
 
-// Execute SQL statements (with optional FK cascade support)
+// Execute merge operations (NEW: structured operations with server-side SQL generation)
+// Also supports legacy API with raw SQL statements for backward compatibility
 databaseRouter.post("/:connectionId/execute", async (req, res) => {
     const { connectionId } = req.params;
-    const { type, statements, insertAsNewOps, fkCascadeChain } = req.body;
-
-    if (!Array.isArray(statements)) {
-        res.status(400).json({
-            success: false,
-            error: "statements must be an array",
-        });
-        return;
-    }
-
-    // Check if this is a cascade merge
-    const hasInsertAsNew =
-        Array.isArray(insertAsNewOps) && insertAsNewOps.length > 0;
-    const hasCascade =
-        Array.isArray(fkCascadeChain) && fkCascadeChain.length > 0;
-    const needsCascade = hasInsertAsNew || hasCascade;
-
-    // Filter out insert-as-new statements from regular statements
-    const regularStatements = needsCascade
-        ? statements.filter(
-              (s: string) =>
-                  !insertAsNewOps?.some((op: { sql: string }) => op.sql === s),
-          )
-        : statements;
+    const { type, operations, statements, insertAsNewOps, fkCascadeChain } = req.body;
 
     try {
         let result: {
@@ -114,6 +95,55 @@ databaseRouter.post("/:connectionId/execute", async (req, res) => {
             error?: string;
             newIdMap?: Record<string, number>;
         };
+
+        // NEW API: structured operations (preferred, secure)
+        if (Array.isArray(operations)) {
+            if (type === "sqlite") {
+                result = executeSQLiteMergeOperations(
+                    connectionId,
+                    operations as MergeOperation[],
+                    fkCascadeChain,
+                );
+            } else if (type === "mysql") {
+                result = await executeMySQLMergeOperations(
+                    connectionId,
+                    operations as MergeOperation[],
+                    fkCascadeChain,
+                );
+            } else {
+                res.status(400).json({
+                    success: false,
+                    error: "Unknown connection type",
+                });
+                return;
+            }
+            res.json(result);
+            return;
+        }
+
+        // LEGACY API: raw SQL statements (deprecated, kept for backward compatibility)
+        if (!Array.isArray(statements)) {
+            res.status(400).json({
+                success: false,
+                error: "Either 'operations' or 'statements' array must be provided",
+            });
+            return;
+        }
+
+        // Check if this is a cascade merge
+        const hasInsertAsNew =
+            Array.isArray(insertAsNewOps) && insertAsNewOps.length > 0;
+        const hasCascade =
+            Array.isArray(fkCascadeChain) && fkCascadeChain.length > 0;
+        const needsCascade = hasInsertAsNew || hasCascade;
+
+        // Filter out insert-as-new statements from regular statements
+        const regularStatements = needsCascade
+            ? statements.filter(
+                  (s: string) =>
+                      !insertAsNewOps?.some((op: { sql: string }) => op.sql === s),
+              )
+            : statements;
 
         if (type === "sqlite") {
             if (needsCascade) {

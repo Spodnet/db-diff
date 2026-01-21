@@ -13,13 +13,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { FkCascade } from "../../../hooks/useDiff";
-import type { Connection, TableInfo } from "../../../lib/types";
-
-interface MergeOperation {
-    type: "insert" | "update" | "delete";
-    primaryKey: string;
-    sql: string;
-}
+import type { Connection, MergeOperation, TableInfo } from "../../../lib/types";
 
 interface MergeConfirmationModalProps {
     onClose: () => void;
@@ -112,28 +106,40 @@ export function MergeConfirmationModal({
 
                     <div className="space-y-4">
                         <h4 className="text-sm font-medium text-text-muted uppercase tracking-wider">
-                            SQL Operations Preview
+                            Operations Preview
                         </h4>
                         <div className="bg-black/30 rounded-lg p-4 font-mono text-xs overflow-auto max-h-60 border border-border">
-                            {mergeOperations.map((op, i) => (
-                                // biome-ignore lint/suspicious/noArrayIndexKey: pure display
-                                <div key={i} className="mb-1 last:mb-0">
-                                    <span
-                                        className={
-                                            op.type === "insert"
-                                                ? "text-success"
-                                                : op.type === "delete"
-                                                  ? "text-error"
-                                                  : "text-warning"
-                                        }
-                                    >
-                                        {op.type.toUpperCase()}
-                                    </span>{" "}
-                                    <span className="text-text-secondary">
-                                        {op.sql}
-                                    </span>
-                                </div>
-                            ))}
+                            {mergeOperations.map((op, i) => {
+                                // Generate a human-readable summary for each operation
+                                let summary = "";
+                                if (op.type === "insert") {
+                                    summary = `${op.tableName} (${op.primaryKeyColumn}=${op.primaryKeyValue})${op.isInsertAsNew ? " [NEW]" : ""}`;
+                                } else if (op.type === "update") {
+                                    const cols = op.values ? Object.keys(op.values).join(", ") : "";
+                                    summary = `${op.tableName} SET ${cols} WHERE ${op.primaryKeyColumn}=${op.primaryKeyValue}`;
+                                } else if (op.type === "delete") {
+                                    summary = `${op.tableName} WHERE ${op.primaryKeyColumn}=${op.primaryKeyValue}`;
+                                }
+                                return (
+                                    // biome-ignore lint/suspicious/noArrayIndexKey: pure display
+                                    <div key={i} className="mb-1 last:mb-0">
+                                        <span
+                                            className={
+                                                op.type === "insert"
+                                                    ? "text-success"
+                                                    : op.type === "delete"
+                                                      ? "text-error"
+                                                      : "text-warning"
+                                            }
+                                        >
+                                            {op.type.toUpperCase()}
+                                        </span>{" "}
+                                        <span className="text-text-secondary">
+                                            {summary}
+                                        </span>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
 

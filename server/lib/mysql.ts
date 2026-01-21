@@ -1,5 +1,6 @@
 import mysql from "mysql2/promise";
 import type { ColumnInfo, TableInfo } from "../../src/lib/types";
+import type { FkCascadeMapping, MergeOperation } from "./mergeTypes";
 import { closeTunnel, createTunnel, type SSHConfig } from "./ssh-tunnel";
 
 interface MySQLConfig {
@@ -327,13 +328,6 @@ export async function executeMySQLStatements(
     }
 }
 
-// FK Cascade types
-export interface FkCascadeMapping {
-    table: string;
-    column: string;
-    children: FkCascadeMapping[];
-}
-
 export interface InsertAsNewOperation {
     sql: string; // INSERT statement without PK
     originalPK: string; // Original primary key value
@@ -464,5 +458,225 @@ async function executeCascadeInserts(
         for (const childCascade of cascade.children) {
             await executeCascadeInserts(connection, childCascade, childIdMap);
         }
+    }
+}
+
+// ============================================================================
+// Server-side SQL generation (Phase 1 Security Hardening)
+// ============================================================================
+
+/**
+ * Format a value for MySQL SQL safely
+ */
+function formatValueForSQL(value: unknown): string {
+    if (value === null || value === undefined) return "NULL";
+    if (typeof value === "number") return String(value);
+    if (typeof value === "boolean") return value ? "1" : "0";
+
+    // Handle Date objects
+    if (value instanceof Date) {
+        return `'${value.toISOString().slice(0, 19).replace("T", " ")}'`;
+    }
+
+    // Handle objects (e.g., JSON columns)
+    if (typeof value === "object") {
+        const jsonStr = JSON.stringify(value);
+        return `'${jsonStr.replace(/'/g, "''")}'`;
+    }
+
+    if (typeof value === "string") {
+        // Check for ISO date strings
+        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+            try {
+                const date = new Date(value);
+                if (!Number.isNaN(date.getTime())) {
+                    return `'${date.toISOString().slice(0, 19).replace("T", " ")}'`;
+                }
+            } catch {
+                // ignore invalid dates
+            }
+        }
+        // Escape single quotes
+        return `'${value.replace(/'/g, "''")}'`;
+    }
+
+    return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+/**
+ * Get all table names for a connection (single DB query)
+ */
+async function getAllTableNames(
+    connection: mysql.Connection,
+): Promise<Set<string>> {
+    const [tables] =
+        await connection.execute<mysql.RowDataPacket[]>("SHOW TABLES");
+
+    return new Set(
+        tables.map((row: mysql.RowDataPacket) => Object.values(row)[0] as string),
+    );
+}
+
+/**
+ * Get all column names for a table (single DB query)
+ */
+async function getTableColumns(
+    connection: mysql.Connection,
+    tableName: string,
+): Promise<Set<string>> {
+    const [columns] = await connection.execute<mysql.RowDataPacket[]>(
+        `DESCRIBE \`${tableName}\``,
+    );
+    return new Set(columns.map((col: mysql.RowDataPacket) => col.Field as string));
+}
+
+/**
+ * Validate that a table name exists in the connection's database
+ * (kept for external use, but prefer getAllTableNames for batch validation)
+ */
+export async function validateTableName(
+    connectionId: string,
+    tableName: string,
+): Promise<boolean> {
+    const connection = await ensureConnection(connectionId);
+    const tables = await getAllTableNames(connection);
+    return tables.has(tableName);
+}
+
+/**
+ * Build SQL statement from a MergeOperation
+ */
+function buildMergeSQL(op: MergeOperation): string {
+    const { type, tableName, primaryKeyColumn, primaryKeyValue, columns, values, isInsertAsNew } = op;
+
+    switch (type) {
+        case "insert": {
+            if (!columns || !values) {
+                throw new Error("Insert operation requires columns and values");
+            }
+            const cols = isInsertAsNew
+                ? columns.filter((c) => c !== primaryKeyColumn)
+                : columns;
+            const vals = cols.map((c) => formatValueForSQL(values[c]));
+            return `INSERT INTO \`${tableName}\` (${cols.map((c) => `\`${c}\``).join(", ")}) VALUES (${vals.join(", ")})`;
+        }
+        case "update": {
+            if (!values) {
+                throw new Error("Update operation requires values");
+            }
+            const setClauses = Object.entries(values)
+                .map(([col, val]) => `\`${col}\` = ${formatValueForSQL(val)}`)
+                .join(", ");
+            return `UPDATE \`${tableName}\` SET ${setClauses} WHERE \`${primaryKeyColumn}\` = ${formatValueForSQL(primaryKeyValue)}`;
+        }
+        case "delete": {
+            return `DELETE FROM \`${tableName}\` WHERE \`${primaryKeyColumn}\` = ${formatValueForSQL(primaryKeyValue)}`;
+        }
+        default:
+            throw new Error(`Unknown operation type: ${type}`);
+    }
+}
+
+/**
+ * Execute merge operations with server-side SQL generation
+ */
+export async function executeMergeOperations(
+    connectionId: string,
+    operations: MergeOperation[],
+    fkCascadeChain?: FkCascadeMapping[],
+): Promise<{ success: boolean; error?: string; newIdMap?: Record<string, number> }> {
+    if (operations.length === 0) {
+        return { success: true };
+    }
+
+    const connection = await ensureConnection(connectionId);
+    const newIdMap: Record<string, number> = {};
+
+    // Fetch all valid tables once
+    const validTables = await getAllTableNames(connection);
+
+    // Validate all table names
+    const requiredTables = [...new Set(operations.map((op) => op.tableName))];
+    for (const tn of requiredTables) {
+        if (!validTables.has(tn)) {
+            return { success: false, error: `Invalid table name: ${tn}` };
+        }
+    }
+
+    // Fetch columns for each table once and validate column names
+    const tableColumnsMap = new Map<string, Set<string>>();
+    for (const tn of requiredTables) {
+        const columns = await getTableColumns(connection, tn);
+        tableColumnsMap.set(tn, columns);
+    }
+
+    // Validate all column references
+    for (const op of operations) {
+        const validColumns = tableColumnsMap.get(op.tableName);
+        if (!validColumns) continue;
+
+        // Validate primary key column
+        if (!validColumns.has(op.primaryKeyColumn)) {
+            return { success: false, error: `Invalid column: ${op.primaryKeyColumn} in table ${op.tableName}` };
+        }
+
+        // Validate columns array if present
+        if (op.columns) {
+            for (const col of op.columns) {
+                if (!validColumns.has(col)) {
+                    return { success: false, error: `Invalid column: ${col} in table ${op.tableName}` };
+                }
+            }
+        }
+
+        // Validate value keys if present
+        if (op.values) {
+            for (const col of Object.keys(op.values)) {
+                if (!validColumns.has(col)) {
+                    return { success: false, error: `Invalid column: ${col} in table ${op.tableName}` };
+                }
+            }
+        }
+    }
+
+    try {
+        await connection.beginTransaction();
+
+        // Separate regular operations from insert-as-new operations
+        const regularOps = operations.filter((op) => !op.isInsertAsNew);
+        const insertAsNewOps = operations.filter((op) => op.isInsertAsNew);
+
+        // Execute regular operations
+        for (const op of regularOps) {
+            const sql = buildMergeSQL(op);
+            await connection.execute(sql);
+        }
+
+        // Execute insert-as-new operations and capture new IDs
+        for (const op of insertAsNewOps) {
+            const sql = buildMergeSQL(op);
+            await connection.execute(sql);
+
+            const [result] = await connection.execute<mysql.RowDataPacket[]>(
+                "SELECT LAST_INSERT_ID() as lastId",
+            );
+            newIdMap[String(op.primaryKeyValue)] = result[0].lastId as number;
+        }
+
+        // Execute FK cascades if present
+        if (fkCascadeChain && fkCascadeChain.length > 0) {
+            for (const cascade of fkCascadeChain) {
+                await executeCascadeInserts(connection, cascade, newIdMap);
+            }
+        }
+
+        await connection.commit();
+        return { success: true, newIdMap: Object.keys(newIdMap).length > 0 ? newIdMap : undefined };
+    } catch (error) {
+        await connection.rollback();
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+        };
     }
 }

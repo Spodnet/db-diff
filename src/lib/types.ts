@@ -109,3 +109,18 @@ export interface DiffSelection {
     targetTableName: string | null;
     ignoredColumns: string[];
 }
+
+/**
+ * Structured merge operation sent to server.
+ * Server generates SQL from this structure (security improvement).
+ */
+export interface MergeOperation {
+    type: "insert" | "update" | "delete";
+    tableName: string;
+    primaryKeyColumn: string;
+    primaryKeyValue: string | number;
+    columns?: string[];
+    values?: Record<string, unknown>;
+    isInsertAsNew?: boolean;
+}
+

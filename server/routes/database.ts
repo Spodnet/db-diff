@@ -14,15 +14,17 @@ import {
     getSQLiteTableData,
     getSQLiteTables,
 } from "../lib/sqlite";
+import { AppError, asyncHandler } from "../middleware/errors";
 
 export const databaseRouter = Router();
 
 // Get tables for a connection
-databaseRouter.get("/:connectionId/tables", async (req, res) => {
-    const { connectionId } = req.params;
-    const { type } = req.query;
+databaseRouter.get(
+    "/:connectionId/tables",
+    asyncHandler(async (req, res) => {
+        const { connectionId } = req.params;
+        const { type } = req.query;
 
-    try {
         if (type === "sqlite") {
             const tables = getSQLiteTables(connectionId);
             res.json({ success: true, tables });
@@ -30,66 +32,50 @@ databaseRouter.get("/:connectionId/tables", async (req, res) => {
             const tables = await getMySQLTables(connectionId);
             res.json({ success: true, tables });
         } else {
-            res.status(400).json({
-                success: false,
-                error: "Unknown connection type",
-            });
+            throw new AppError("Unknown connection type", 400);
         }
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
-        });
-    }
-});
+    }),
+);
 
 // Get table data
 databaseRouter.get(
     "/:connectionId/tables/:tableName/data",
-    async (req, res) => {
+    asyncHandler(async (req, res) => {
         const { connectionId, tableName } = req.params;
         const defaultLimit = Number(process.env.DEFAULT_ROW_LIMIT) || 500;
         const { type, limit = String(defaultLimit), offset = "0" } = req.query;
 
-        try {
-            if (type === "sqlite") {
-                const data = getSQLiteTableData(
-                    connectionId,
-                    tableName,
-                    Number(limit),
-                    Number(offset),
-                );
-                res.json({ success: true, ...data });
-            } else if (type === "mysql") {
-                const data = await getMySQLTableData(
-                    connectionId,
-                    tableName,
-                    Number(limit),
-                    Number(offset),
-                );
-                res.json({ success: true, ...data });
-            } else {
-                res.status(400).json({
-                    success: false,
-                    error: "Unknown connection type",
-                });
-            }
-        } catch (error) {
-            res.status(500).json({
-                success: false,
-                error: error instanceof Error ? error.message : "Unknown error",
-            });
+        if (type === "sqlite") {
+            const data = getSQLiteTableData(
+                connectionId,
+                tableName,
+                Number(limit),
+                Number(offset),
+            );
+            res.json({ success: true, ...data });
+        } else if (type === "mysql") {
+            const data = await getMySQLTableData(
+                connectionId,
+                tableName,
+                Number(limit),
+                Number(offset),
+            );
+            res.json({ success: true, ...data });
+        } else {
+            throw new AppError("Unknown connection type", 400);
         }
-    },
+    }),
 );
 
 // Execute merge operations (NEW: structured operations with server-side SQL generation)
 // Also supports legacy API with raw SQL statements for backward compatibility
-databaseRouter.post("/:connectionId/execute", async (req, res) => {
-    const { connectionId } = req.params;
-    const { type, operations, statements, insertAsNewOps, fkCascadeChain } = req.body;
+databaseRouter.post(
+    "/:connectionId/execute",
+    asyncHandler(async (req, res) => {
+        const { connectionId } = req.params;
+        const { type, operations, statements, insertAsNewOps, fkCascadeChain } =
+            req.body;
 
-    try {
         let result: {
             success: boolean;
             error?: string;
@@ -111,11 +97,7 @@ databaseRouter.post("/:connectionId/execute", async (req, res) => {
                     fkCascadeChain,
                 );
             } else {
-                res.status(400).json({
-                    success: false,
-                    error: "Unknown connection type",
-                });
-                return;
+                throw new AppError("Unknown connection type", 400);
             }
             res.json(result);
             return;
@@ -123,11 +105,10 @@ databaseRouter.post("/:connectionId/execute", async (req, res) => {
 
         // LEGACY API: raw SQL statements (deprecated, kept for backward compatibility)
         if (!Array.isArray(statements)) {
-            res.status(400).json({
-                success: false,
-                error: "Either 'operations' or 'statements' array must be provided",
-            });
-            return;
+            throw new AppError(
+                "Either 'operations' or 'statements' array must be provided",
+                400,
+            );
         }
 
         // Check if this is a cascade merge
@@ -168,18 +149,9 @@ databaseRouter.post("/:connectionId/execute", async (req, res) => {
                 result = await executeMySQLStatements(connectionId, statements);
             }
         } else {
-            res.status(400).json({
-                success: false,
-                error: "Unknown connection type",
-            });
-            return;
+            throw new AppError("Unknown connection type", 400);
         }
 
         res.json(result);
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
-        });
-    }
-});
+    }),
+);

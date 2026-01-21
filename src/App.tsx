@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { DiffWorkspace } from "./components/diff/DiffWorkspace";
 import { Header } from "./components/layout/Header";
 import { Sidebar } from "./components/layout/Sidebar";
@@ -27,21 +28,23 @@ function MainLayout() {
                                         : "z-0 invisible"
                                 }`}
                             >
-                                {tab.type === "diff" && (
-                                    <DiffWorkspace initialData={tab.data} />
-                                )}
-                                {tab.type === "table" && tab.data && (
-                                    <TableDataWorkspace
-                                        connection={
-                                            tab.data.connection ||
-                                            (tab.data as any).connection
-                                        }
-                                        tableName={
-                                            tab.data.tableName ||
-                                            (tab.data as any).tableName
-                                        }
-                                    />
-                                )}
+                                <ErrorBoundary>
+                                    {tab.type === "diff" && (
+                                        <DiffWorkspace initialData={tab.data} />
+                                    )}
+                                    {tab.type === "table" && tab.data && (
+                                        <TableDataWorkspace
+                                            connection={
+                                                tab.data.connection ||
+                                                (tab.data as any).connection
+                                            }
+                                            tableName={
+                                                tab.data.tableName ||
+                                                (tab.data as any).tableName
+                                            }
+                                        />
+                                    )}
+                                </ErrorBoundary>
                             </div>
                         ))}
                     </div>

@@ -12,8 +12,12 @@ import {
     X,
 } from "lucide-react";
 import { useState } from "react";
-import type { FkCascade } from "../../../hooks/useDiff";
-import type { Connection, MergeOperation, TableInfo } from "../../../lib/types";
+import type {
+    Connection,
+    FkCascade,
+    MergeOperation,
+    TableInfo,
+} from "../../../lib/types";
 
 interface MergeConfirmationModalProps {
     onClose: () => void;
@@ -115,7 +119,9 @@ export function MergeConfirmationModal({
                                 if (op.type === "insert") {
                                     summary = `${op.tableName} (${op.primaryKeyColumn}=${op.primaryKeyValue})${op.isInsertAsNew ? " [NEW]" : ""}`;
                                 } else if (op.type === "update") {
-                                    const cols = op.values ? Object.keys(op.values).join(", ") : "";
+                                    const cols = op.values
+                                        ? Object.keys(op.values).join(", ")
+                                        : "";
                                     summary = `${op.tableName} SET ${cols} WHERE ${op.primaryKeyColumn}=${op.primaryKeyValue}`;
                                 } else if (op.type === "delete") {
                                     summary = `${op.tableName} WHERE ${op.primaryKeyColumn}=${op.primaryKeyValue}`;

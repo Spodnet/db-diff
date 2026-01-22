@@ -1,9 +1,9 @@
 import "dotenv/config";
 import cors from "cors";
 import express from "express";
+import { errorHandler } from "./middleware/errors";
 import { connectionsRouter } from "./routes/connections";
 import { databaseRouter } from "./routes/database";
-import { errorHandler } from "./middleware/errors";
 
 const app = express();
 const PORT = process.env.PORT || 3001;

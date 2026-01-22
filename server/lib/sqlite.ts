@@ -325,10 +325,13 @@ function getAllTableNames(db: Database.Database): Set<string> {
 /**
  * Get all column names for a table (single query)
  */
-function getTableColumns(db: Database.Database, tableName: string): Set<string> {
-    const columns = db
-        .prepare(`PRAGMA table_info("${tableName}")`)
-        .all() as { name: string }[];
+function getTableColumns(
+    db: Database.Database,
+    tableName: string,
+): Set<string> {
+    const columns = db.prepare(`PRAGMA table_info("${tableName}")`).all() as {
+        name: string;
+    }[];
     return new Set(columns.map((c) => c.name));
 }
 
@@ -353,7 +356,15 @@ export function validateTableName(
  * Build SQL statement from a MergeOperation
  */
 function buildMergeSQL(op: MergeOperation): string {
-    const { type, tableName, primaryKeyColumn, primaryKeyValue, columns, values, isInsertAsNew } = op;
+    const {
+        type,
+        tableName,
+        primaryKeyColumn,
+        primaryKeyValue,
+        columns,
+        values,
+        isInsertAsNew,
+    } = op;
 
     switch (type) {
         case "insert": {
@@ -427,14 +438,20 @@ export function executeMergeOperations(
 
         // Validate primary key column
         if (!validColumns.has(op.primaryKeyColumn)) {
-            return { success: false, error: `Invalid column: ${op.primaryKeyColumn} in table ${op.tableName}` };
+            return {
+                success: false,
+                error: `Invalid column: ${op.primaryKeyColumn} in table ${op.tableName}`,
+            };
         }
 
         // Validate columns array if present
         if (op.columns) {
             for (const col of op.columns) {
                 if (!validColumns.has(col)) {
-                    return { success: false, error: `Invalid column: ${col} in table ${op.tableName}` };
+                    return {
+                        success: false,
+                        error: `Invalid column: ${col} in table ${op.tableName}`,
+                    };
                 }
             }
         }
@@ -443,7 +460,10 @@ export function executeMergeOperations(
         if (op.values) {
             for (const col of Object.keys(op.values)) {
                 if (!validColumns.has(col)) {
-                    return { success: false, error: `Invalid column: ${col} in table ${op.tableName}` };
+                    return {
+                        success: false,
+                        error: `Invalid column: ${col} in table ${op.tableName}`,
+                    };
                 }
             }
         }
@@ -464,7 +484,8 @@ export function executeMergeOperations(
         for (const op of insertAsNewOps) {
             const sql = buildMergeSQL(op);
             const result = db.prepare(sql).run();
-            newIdMap[String(op.primaryKeyValue)] = result.lastInsertRowid as number;
+            newIdMap[String(op.primaryKeyValue)] =
+                result.lastInsertRowid as number;
         }
 
         // Execute FK cascades if present
@@ -477,7 +498,10 @@ export function executeMergeOperations(
 
     try {
         transaction();
-        return { success: true, newIdMap: Object.keys(newIdMap).length > 0 ? newIdMap : undefined };
+        return {
+            success: true,
+            newIdMap: Object.keys(newIdMap).length > 0 ? newIdMap : undefined,
+        };
     } catch (error) {
         return {
             success: false,

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { MergeOperation } from "../lib/mergeTypes";
 import {
     executeMergeOperations as executeMySQLMergeOperations,
     executeMySQLStatements,
@@ -6,7 +7,6 @@ import {
     getMySQLTableData,
     getMySQLTables,
 } from "../lib/mysql";
-import type { MergeOperation } from "../lib/mergeTypes";
 import {
     executeMergeOperations as executeSQLiteMergeOperations,
     executeSQLiteStatements,
@@ -122,7 +122,9 @@ databaseRouter.post(
         const regularStatements = needsCascade
             ? statements.filter(
                   (s: string) =>
-                      !insertAsNewOps?.some((op: { sql: string }) => op.sql === s),
+                      !insertAsNewOps?.some(
+                          (op: { sql: string }) => op.sql === s,
+                      ),
               )
             : statements;
 

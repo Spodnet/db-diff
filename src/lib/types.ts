@@ -124,3 +124,9 @@ export interface MergeOperation {
     isInsertAsNew?: boolean;
 }
 
+// FK Cascade structure (recursive)
+export interface FkCascade {
+    table: string;
+    column: string;
+    children: FkCascade[];
+}

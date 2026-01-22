@@ -5,7 +5,8 @@ import {
     Loader2,
     Square,
 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
+import { useClickOutside } from "../../hooks/useClickOutside";
 import type { Connection, ConnectionStatus, TableInfo } from "../../lib/types";
 
 interface ConnectionSelectorProps {
@@ -43,39 +44,8 @@ export function ConnectionSelector({
     const connectionRef = useRef<HTMLDivElement>(null);
     const tableRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (
-                isConnectionOpen &&
-                connectionRef.current &&
-                !connectionRef.current.contains(event.target as Node)
-            ) {
-                onToggleConnection();
-            }
-        };
-
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, [isConnectionOpen, onToggleConnection]);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (
-                isTableOpen &&
-                tableRef.current &&
-                !tableRef.current.contains(event.target as Node)
-            ) {
-                onToggleTable();
-            }
-        };
-
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, [isTableOpen, onToggleTable]);
+    useClickOutside(connectionRef, onToggleConnection, isConnectionOpen);
+    useClickOutside(tableRef, onToggleTable, isTableOpen);
 
     return (
         <div className="flex-1">

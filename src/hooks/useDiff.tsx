@@ -1,20 +1,16 @@
 import { createContext, useContext, useState } from "react";
 import type {
     Connection,
-    ConnectionType,
     DiffSelection,
+    FkCascade,
     MergeOperation,
-    RowDiff,
     TableDiffResult,
     TableInfo,
 } from "../lib/types";
-
-// FK Cascade structure (recursive)
-export interface FkCascade {
-    table: string;
-    column: string;
-    children: FkCascade[];
-}
+import { useDiffComparison } from "./diff/useDiffComparison";
+import { useMergeExecution } from "./diff/useMergeExecution";
+import { useMergeOperations } from "./diff/useMergeOperations";
+import { useMergeSelection } from "./diff/useMergeSelection";
 
 interface DiffContextType {
     selection: DiffSelection;
@@ -76,27 +72,24 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
         targetTableName: null,
         ignoredColumns: [],
     });
-    const [diffResult, setDiffResult] = useState<TableDiffResult | null>(null);
-    const [isComparing, setIsComparing] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
-    // Row limit state
-    const [rowLimit, setRowLimitState] = useState(500);
-    const [totalSourceRows, setTotalSourceRows] = useState<number | null>(null);
-    const [totalTargetRows, setTotalTargetRows] = useState<number | null>(null);
+    const mergeSelection = useMergeSelection();
 
-    // Merge state
-    const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
-    const [isMerging, setIsMerging] = useState(false);
-    const [mergeError, setMergeError] = useState<string | null>(null);
-    const [mergeSuccess, setMergeSuccess] = useState(false);
-    const [mergedCells, setMergedCells] = useState<Map<string, Set<string>>>(
-        new Map(),
+    const diffComparison = useDiffComparison(
+        selection,
+        mergeSelection.resetMergeSelection,
     );
-    const [insertAsNewRows, setInsertAsNewRows] = useState<Set<string>>(
-        new Set(),
+
+    const mergeOperations = useMergeOperations(
+        diffComparison.diffResult,
+        mergeSelection.selectedRows,
+        mergeSelection.mergedCells,
+        mergeSelection.insertAsNewRows,
     );
-    const [fkCascadeChain, setFkCascadeChain] = useState<FkCascade[]>([]);
+
+    const mergeExecution = useMergeExecution(
+        mergeSelection.resetMergeSelection,
+    );
 
     const setSourceConnection = (connectionId: string | null) => {
         setSelection((prev) => ({
@@ -104,17 +97,12 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
             sourceConnectionId: connectionId,
             sourceTableName: null,
         }));
-        setDiffResult(null);
-        setSelectedRows(new Set());
-        setMergedCells(new Map());
+        diffComparison.clearResult();
     };
 
     const setSourceTable = (tableName: string | null) => {
         setSelection((prev) => ({ ...prev, sourceTableName: tableName }));
-        setDiffResult(null);
-        setSelectedRows(new Set());
-        setMergedCells(new Map());
-        setInsertAsNewRows(new Set());
+        diffComparison.clearResult();
     };
 
     const setTargetConnection = (connectionId: string | null) => {
@@ -123,102 +111,12 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
             targetConnectionId: connectionId,
             targetTableName: null,
         }));
-        setDiffResult(null);
-        setSelectedRows(new Set());
-        setMergedCells(new Map());
+        diffComparison.clearResult();
     };
 
     const setTargetTable = (tableName: string | null) => {
         setSelection((prev) => ({ ...prev, targetTableName: tableName }));
-        setDiffResult(null);
-        setSelectedRows(new Set());
-        setMergedCells(new Map());
-        setInsertAsNewRows(new Set());
-    };
-
-    const runComparison = async (
-        sourceConnection: Connection,
-        targetConnection: Connection,
-        sourceTable: TableInfo,
-        targetTable: TableInfo,
-        limit?: number,
-    ) => {
-        setIsComparing(true);
-        setError(null);
-        setSelectedRows(new Set());
-        setMergedCells(new Map());
-        setMergeSuccess(false);
-        setMergeError(null);
-
-        const effectiveLimit = limit ?? rowLimit;
-
-        try {
-            const pkColumn =
-                sourceTable.columns.find((c) => c.primaryKey)?.name || "id";
-
-            const sourceRes = await fetch(
-                `/api/database/${sourceConnection.id}/tables/${sourceTable.name}/data?type=${sourceConnection.type}&limit=${effectiveLimit}`,
-            );
-            const sourceData = await sourceRes.json();
-
-            const targetRes = await fetch(
-                `/api/database/${targetConnection.id}/tables/${targetTable.name}/data?type=${targetConnection.type}&limit=${effectiveLimit}`,
-            );
-            const targetData = await targetRes.json();
-
-            if (!sourceData.success || !targetData.success) {
-                const errorMsg =
-                    sourceData.error ||
-                    targetData.error ||
-                    "Failed to fetch table data";
-                throw new Error(errorMsg);
-            }
-
-            // Store total counts
-            setTotalSourceRows(sourceData.total ?? null);
-            setTotalTargetRows(targetData.total ?? null);
-
-            // Filter out ignored columns
-            const effectiveColumns = sourceTable.columns
-                .map((c) => c.name)
-                .filter((name) => !selection.ignoredColumns.includes(name));
-
-            const result = computeDiff(
-                sourceConnection.name,
-                targetConnection.name,
-                targetConnection.type,
-                sourceTable.name,
-                pkColumn,
-                effectiveColumns,
-                sourceData.rows,
-                targetData.rows,
-            );
-
-            setDiffResult(result);
-        } catch (e) {
-            setError(e instanceof Error ? e.message : "Comparison failed");
-        } finally {
-            setIsComparing(false);
-        }
-    };
-
-    const clearResult = () => {
-        setDiffResult(null);
-        setError(null);
-        setSelectedRows(new Set());
-        setMergedCells(new Map());
-        setInsertAsNewRows(new Set());
-        setTotalSourceRows(null);
-        setTotalTargetRows(null);
-    };
-
-    const setRowLimit = (limit: number) => {
-        setRowLimitState(limit);
-    };
-
-    const loadAllRows = () => {
-        // Set a very high limit to effectively load all rows
-        setRowLimitState(1000000);
+        diffComparison.clearResult();
     };
 
     const toggleIgnoredColumn = (columnName: string) => {
@@ -236,258 +134,60 @@ export function DiffProvider({ children }: { children: React.ReactNode }) {
         });
     };
 
-    // Merge actions
-    const toggleRowSelection = (primaryKey: string) => {
-        setSelectedRows((prev) => {
-            const next = new Set(prev);
-            if (next.has(primaryKey)) {
-                next.delete(primaryKey);
-            } else {
-                next.add(primaryKey);
-            }
-            return next;
-        });
-    };
-
     const selectAllRows = () => {
-        if (!diffResult) return;
-        const changedRows = diffResult.rows.filter(
-            (r) => r.status !== "unchanged",
-        );
-        setSelectedRows(new Set(changedRows.map((r) => r.primaryKey)));
-    };
-
-    const deselectAllRows = () => {
-        setSelectedRows(new Set());
-        setMergedCells(new Map());
-    };
-
-    const mergeCell = (primaryKey: string, column: string) => {
-        setMergedCells((prev) => {
-            const next = new Map(prev);
-            const cellSet = next.get(primaryKey) || new Set();
-            cellSet.add(column);
-            next.set(primaryKey, cellSet);
-            return next;
-        });
-    };
-
-    const toggleInsertAsNew = (primaryKey: string) => {
-        setInsertAsNewRows((prev) => {
-            const next = new Set(prev);
-            if (next.has(primaryKey)) {
-                next.delete(primaryKey);
-            } else {
-                next.add(primaryKey);
-            }
-            return next;
-        });
-    };
-
-    // Generate merge operations for selected rows
-    const mergeOperations: MergeOperation[] = (() => {
-        if (!diffResult) return [];
-
-        const ops: MergeOperation[] = [];
-        const { tableName, primaryKeyColumn, columns } = diffResult;
-
-        for (const row of diffResult.rows) {
-            const isRowSelected = selectedRows.has(row.primaryKey);
-            const cellMerges = mergedCells.get(row.primaryKey);
-            const hasCellMerges = cellMerges && cellMerges.size > 0;
-            const isInsertAsNew = insertAsNewRows.has(row.primaryKey);
-
-            // Skip if nothing is selected for this row
-            if (!isRowSelected && !hasCellMerges && !isInsertAsNew) continue;
-            if (row.status === "unchanged") continue;
-
-            if (row.status === "deleted" && isRowSelected) {
-                // Row exists in source but not in target - INSERT into target
-                const values: Record<string, unknown> = {};
-                for (const col of columns) {
-                    values[col] = row.sourceRow?.[col];
-                }
-                ops.push({
-                    type: "insert",
-                    tableName,
-                    primaryKeyColumn,
-                    primaryKeyValue: row.primaryKey,
-                    columns,
-                    values,
-                });
-            } else if (row.status === "added" && isRowSelected) {
-                // Row exists in target but not in source - DELETE from target
-                ops.push({
-                    type: "delete",
-                    tableName,
-                    primaryKeyColumn,
-                    primaryKeyValue: row.primaryKey,
-                });
-            } else if (row.status === "modified") {
-                // Check if this row should be inserted as a new row
-                if (isInsertAsNew) {
-                    // Insert source data as NEW row (without PK, let auto-increment assign)
-                    const values: Record<string, unknown> = {};
-                    for (const col of columns) {
-                        if (col !== primaryKeyColumn) {
-                            values[col] = row.sourceRow?.[col];
-                        }
-                    }
-                    ops.push({
-                        type: "insert",
-                        tableName,
-                        primaryKeyColumn,
-                        primaryKeyValue: row.primaryKey,
-                        columns,
-                        values,
-                        isInsertAsNew: true,
-                    });
-                } else if (isRowSelected || hasCellMerges) {
-                    // Row exists in both but differs - UPDATE target to match source
-                    const values: Record<string, unknown> = {};
-                    for (const c of row.cellDiffs) {
-                        if (c.status !== "modified") continue;
-                        if (isRowSelected || cellMerges?.has(c.column)) {
-                            values[c.column] = c.sourceValue;
-                        }
-                    }
-
-                    if (Object.keys(values).length > 0) {
-                        ops.push({
-                            type: "update",
-                            tableName,
-                            primaryKeyColumn,
-                            primaryKeyValue: row.primaryKey,
-                            values,
-                        });
-                    }
-                }
-            }
+        if (diffComparison.diffResult) {
+            mergeSelection.selectAllRows(diffComparison.diffResult.rows);
         }
-
-        return ops;
-    })();
+    };
 
     const executeMerge = async (targetConnection: Connection) => {
-        if (mergeOperations.length === 0) return;
-
-        setIsMerging(true);
-        setMergeError(null);
-        setMergeSuccess(false);
-
-        try {
-            const response = await fetch(
-                `/api/database/${targetConnection.id}/execute`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        type: targetConnection.type,
-                        operations: mergeOperations,
-                        fkCascadeChain:
-                            fkCascadeChain.length > 0
-                                ? fkCascadeChain
-                                : undefined,
-                    }),
-                },
-            );
-
-            const result = await response.json();
-
-            if (result.success) {
-                setMergeSuccess(true);
-                setSelectedRows(new Set());
-                setMergedCells(new Map());
-                setInsertAsNewRows(new Set());
-            } else {
-                setMergeError(result.error || "Merge failed");
-            }
-        } catch (e) {
-            setMergeError(e instanceof Error ? e.message : "Merge failed");
-        } finally {
-            setIsMerging(false);
-        }
+        await mergeExecution.executeMerge(targetConnection, mergeOperations);
     };
-
-    const clearMergeState = () => {
-        setMergeError(null);
-        setMergeSuccess(false);
-    };
-
-    // FK Cascade management
-    const addFkCascade = (parentPath: number[], cascade: FkCascade) => {
-        setFkCascadeChain((prev) => {
-            if (parentPath.length === 0) {
-                // Add at root level
-                return [...prev, cascade];
-            }
-            // Deep clone and navigate to parent
-            const next = JSON.parse(JSON.stringify(prev)) as FkCascade[];
-            let current = next;
-            for (let i = 0; i < parentPath.length - 1; i++) {
-                current = current[parentPath[i]].children;
-            }
-            current[parentPath[parentPath.length - 1]].children.push(cascade);
-            return next;
-        });
-    };
-
-    const removeFkCascade = (path: number[]) => {
-        if (path.length === 0) return;
-        setFkCascadeChain((prev) => {
-            const next = JSON.parse(JSON.stringify(prev)) as FkCascade[];
-            if (path.length === 1) {
-                next.splice(path[0], 1);
-                return next;
-            }
-            let current = next;
-            for (let i = 0; i < path.length - 1; i++) {
-                current = current[path[i]].children;
-            }
-            current.splice(path[path.length - 1], 1);
-            return next;
-        });
-    };
-
-    const clearFkCascades = () => setFkCascadeChain([]);
 
     return (
         <DiffContext.Provider
             value={{
                 selection,
-                diffResult,
-                isComparing,
-                error,
-                rowLimit,
-                totalSourceRows,
-                totalTargetRows,
-                setRowLimit,
-                loadAllRows,
-                selectedRows,
-                mergedCells,
+                diffResult: diffComparison.diffResult,
+                isComparing: diffComparison.isComparing,
+                error: diffComparison.error,
+                rowLimit: diffComparison.rowLimit,
+                totalSourceRows: diffComparison.totalSourceRows,
+                totalTargetRows: diffComparison.totalTargetRows,
+                setRowLimit: diffComparison.setRowLimit,
+                loadAllRows: diffComparison.loadAllRows,
+
+                selectedRows: mergeSelection.selectedRows,
+                mergedCells: mergeSelection.mergedCells,
+                insertAsNewRows: mergeSelection.insertAsNewRows,
                 mergeOperations,
-                isMerging,
-                mergeError,
-                mergeSuccess,
+
+                isMerging: mergeExecution.isMerging,
+                mergeError: mergeExecution.mergeError,
+                mergeSuccess: mergeExecution.mergeSuccess,
+
                 setSourceConnection,
                 setSourceTable,
                 setTargetConnection,
                 setTargetTable,
-                runComparison,
-                clearResult,
-                toggleRowSelection,
+                runComparison: diffComparison.runComparison,
+                clearResult: diffComparison.clearResult,
+
+                toggleRowSelection: mergeSelection.toggleRowSelection,
                 selectAllRows,
-                deselectAllRows,
+                deselectAllRows: mergeSelection.deselectAllRows,
+                mergeCell: mergeSelection.mergeCell,
+                toggleInsertAsNew: mergeSelection.toggleInsertAsNew,
+
                 executeMerge,
-                clearMergeState,
-                mergeCell,
-                insertAsNewRows,
-                toggleInsertAsNew,
+                clearMergeState: mergeExecution.clearMergeState,
+
                 toggleIgnoredColumn,
-                fkCascadeChain,
-                addFkCascade,
-                removeFkCascade,
-                clearFkCascades,
+
+                fkCascadeChain: mergeExecution.fkCascadeChain,
+                addFkCascade: mergeExecution.addFkCascade,
+                removeFkCascade: mergeExecution.removeFkCascade,
+                clearFkCascades: mergeExecution.clearFkCascades,
             }}
         >
             {children}
@@ -501,124 +201,4 @@ export function useDiff() {
         throw new Error("useDiff must be used within a DiffProvider");
     }
     return context;
-}
-
-
-
-// Diff algorithm
-function computeDiff(
-    sourceConnectionName: string,
-    targetConnectionName: string,
-    targetConnectionType: ConnectionType,
-    tableName: string,
-    pkColumn: string,
-    columns: string[],
-    sourceRows: Record<string, unknown>[],
-    targetRows: Record<string, unknown>[],
-): TableDiffResult {
-    const sourceMap = new Map<string, Record<string, unknown>>();
-    const targetMap = new Map<string, Record<string, unknown>>();
-
-    for (const row of sourceRows) {
-        const pk = String(row[pkColumn]);
-        sourceMap.set(pk, row);
-    }
-
-    for (const row of targetRows) {
-        const pk = String(row[pkColumn]);
-        targetMap.set(pk, row);
-    }
-
-    const allKeys = new Set([...sourceMap.keys(), ...targetMap.keys()]);
-    const rows: RowDiff[] = [];
-
-    let added = 0;
-    let deleted = 0;
-    let modified = 0;
-    let unchanged = 0;
-
-    for (const pk of allKeys) {
-        const sourceRow = sourceMap.get(pk);
-        const targetRow = targetMap.get(pk);
-
-        if (!sourceRow && targetRow) {
-            rows.push({
-                primaryKey: pk,
-                status: "added",
-                targetRow,
-                cellDiffs: columns.map((col) => ({
-                    column: col,
-                    sourceValue: undefined,
-                    targetValue: targetRow[col],
-                    status: "added",
-                })),
-            });
-            added++;
-        } else if (sourceRow && !targetRow) {
-            rows.push({
-                primaryKey: pk,
-                status: "deleted",
-                sourceRow,
-                cellDiffs: columns.map((col) => ({
-                    column: col,
-                    sourceValue: sourceRow[col],
-                    targetValue: undefined,
-                    status: "deleted",
-                })),
-            });
-            deleted++;
-        } else if (sourceRow && targetRow) {
-            const cellDiffs = columns.map((col) => {
-                const sv = sourceRow[col];
-                const tv = targetRow[col];
-                const isEqual = JSON.stringify(sv) === JSON.stringify(tv);
-                return {
-                    column: col,
-                    sourceValue: sv,
-                    targetValue: tv,
-                    status: isEqual
-                        ? ("unchanged" as const)
-                        : ("modified" as const),
-                };
-            });
-
-            const hasChanges = cellDiffs.some((c) => c.status === "modified");
-
-            rows.push({
-                primaryKey: pk,
-                status: hasChanges ? "modified" : "unchanged",
-                sourceRow,
-                targetRow,
-                cellDiffs,
-            });
-
-            if (hasChanges) {
-                modified++;
-            } else {
-                unchanged++;
-            }
-        }
-    }
-
-    rows.sort((a, b) => {
-        const order = { deleted: 0, modified: 1, added: 2, unchanged: 3 };
-        return order[a.status] - order[b.status];
-    });
-
-    return {
-        sourceConnection: sourceConnectionName,
-        targetConnection: targetConnectionName,
-        targetConnectionType,
-        tableName,
-        primaryKeyColumn: pkColumn,
-        columns,
-        rows,
-        summary: {
-            added,
-            deleted,
-            modified,
-            unchanged,
-            total: rows.length,
-        },
-    };
 }

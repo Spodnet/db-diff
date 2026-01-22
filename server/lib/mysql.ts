@@ -513,7 +513,9 @@ async function getAllTableNames(
         await connection.execute<mysql.RowDataPacket[]>("SHOW TABLES");
 
     return new Set(
-        tables.map((row: mysql.RowDataPacket) => Object.values(row)[0] as string),
+        tables.map(
+            (row: mysql.RowDataPacket) => Object.values(row)[0] as string,
+        ),
     );
 }
 
@@ -527,7 +529,9 @@ async function getTableColumns(
     const [columns] = await connection.execute<mysql.RowDataPacket[]>(
         `DESCRIBE \`${tableName}\``,
     );
-    return new Set(columns.map((col: mysql.RowDataPacket) => col.Field as string));
+    return new Set(
+        columns.map((col: mysql.RowDataPacket) => col.Field as string),
+    );
 }
 
 /**
@@ -547,7 +551,15 @@ export async function validateTableName(
  * Build SQL statement from a MergeOperation
  */
 function buildMergeSQL(op: MergeOperation): string {
-    const { type, tableName, primaryKeyColumn, primaryKeyValue, columns, values, isInsertAsNew } = op;
+    const {
+        type,
+        tableName,
+        primaryKeyColumn,
+        primaryKeyValue,
+        columns,
+        values,
+        isInsertAsNew,
+    } = op;
 
     switch (type) {
         case "insert": {
@@ -584,7 +596,11 @@ export async function executeMergeOperations(
     connectionId: string,
     operations: MergeOperation[],
     fkCascadeChain?: FkCascadeMapping[],
-): Promise<{ success: boolean; error?: string; newIdMap?: Record<string, number> }> {
+): Promise<{
+    success: boolean;
+    error?: string;
+    newIdMap?: Record<string, number>;
+}> {
     if (operations.length === 0) {
         return { success: true };
     }
@@ -617,14 +633,20 @@ export async function executeMergeOperations(
 
         // Validate primary key column
         if (!validColumns.has(op.primaryKeyColumn)) {
-            return { success: false, error: `Invalid column: ${op.primaryKeyColumn} in table ${op.tableName}` };
+            return {
+                success: false,
+                error: `Invalid column: ${op.primaryKeyColumn} in table ${op.tableName}`,
+            };
         }
 
         // Validate columns array if present
         if (op.columns) {
             for (const col of op.columns) {
                 if (!validColumns.has(col)) {
-                    return { success: false, error: `Invalid column: ${col} in table ${op.tableName}` };
+                    return {
+                        success: false,
+                        error: `Invalid column: ${col} in table ${op.tableName}`,
+                    };
                 }
             }
         }
@@ -633,7 +655,10 @@ export async function executeMergeOperations(
         if (op.values) {
             for (const col of Object.keys(op.values)) {
                 if (!validColumns.has(col)) {
-                    return { success: false, error: `Invalid column: ${col} in table ${op.tableName}` };
+                    return {
+                        success: false,
+                        error: `Invalid column: ${col} in table ${op.tableName}`,
+                    };
                 }
             }
         }
@@ -671,7 +696,10 @@ export async function executeMergeOperations(
         }
 
         await connection.commit();
-        return { success: true, newIdMap: Object.keys(newIdMap).length > 0 ? newIdMap : undefined };
+        return {
+            success: true,
+            newIdMap: Object.keys(newIdMap).length > 0 ? newIdMap : undefined,
+        };
     } catch (error) {
         await connection.rollback();
         return {

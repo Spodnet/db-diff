@@ -1,5 +1,5 @@
-import { ErrorBoundary } from "./components/ErrorBoundary";
 import { DiffWorkspace } from "./components/diff/DiffWorkspace";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Header } from "./components/layout/Header";
 import { Sidebar } from "./components/layout/Sidebar";
 import { StatusBar } from "./components/layout/StatusBar";
